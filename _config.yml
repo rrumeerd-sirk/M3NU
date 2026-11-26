@@ -1,0 +1,6 @@
+# Disable Jekyll processing - this is a static site
+plugins: []
+exclude:
+  - node_modules
+  - .git
+  - .github
