@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DEVICE_MENU</title>
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="THE DEVICE">
+<meta property="og:title" content="DEVICE_MENU">
+<meta property="og:url" content="https://rrumeerd-sirk.github.io/m3nu/">
+<meta property="og:image" content="https://rrumeerd-sirk.github.io/m3nu/og/device-2.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://rrumeerd-sirk.github.io/m3nu/og/device-2.png">
+<link rel="icon" href="/m3nu/favicon.svg" type="image/svg+xml">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; background:#000; overflow:hidden; }
+  body {
+    font-family:'Courier New', Courier, monospace;
+    font-weight:bold; color:#fff; text-transform:uppercase;
+    -webkit-font-smoothing:none; cursor:default;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  #flash {
+    position:fixed; inset:0; background:#fff; opacity:0; z-index:50;
+    pointer-events:none; transition:opacity .45s linear;
+  }
+</style>
+<script>
+  // SPA redirect for GitHub Pages
+  var path = window.location.pathname;
+  if (path !== '/m3nu/' && path !== '/m3nu/index.html') {
+    window.location.replace('/m3nu/' + (path.startsWith('/m3nu/') ? path.slice(6) : path));
+  } else {
+    window.location.replace('/m3nu/');
+  }
+</script>
+</head>
+<body>
+<div id="flash"></div>
+</body>
+</html>

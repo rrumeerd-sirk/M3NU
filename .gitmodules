@@ -1,0 +1,24 @@
+[submodule "games/jevil"]
+	path = games/jevil
+	url = https://github.com/rrumeerd-sirk/m3nu/jevil
+[submodule "games/knight"]
+	path = games/knight
+	url = https://github.com/rrumeerd-sirk/m3nu/knight
+[submodule "games/adofai"]
+	path = games/adofai
+	url = https://github.com/rrumeerd-sirk/m3nu/adofai
+[submodule "games/bb-web"]
+	path = games/bb-web
+	url = https://github.com/rrumeerd-sirk/m3nu/bb-web
+[submodule "games/dr-web"]
+	path = games/dr-web
+	url = https://github.com/rrumeerd-sirk/m3nu/dr-web
+[submodule "games/music"]
+	path = games/music
+	url = https://github.com/rrumeerd-sirk/m3nu/music
+[submodule "games/ut-web"]
+	path = games/ut-web
+	url = https://github.com/rrumeerd-sirk/m3nu/ut-web
+[submodule "games/win11"]
+	path = games/win11
+	url = https://github.com/rrumeerd-sirk/m3nu/win11
