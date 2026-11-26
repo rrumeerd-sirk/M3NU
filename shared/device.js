@@ -1,6 +1,3 @@
-
-
-
 export const PREFS_KEY = 'thedevice.prefs';
 
 

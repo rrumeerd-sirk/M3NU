@@ -1,5 +1,3 @@
-
-
 import { loadFont, drawText, textWidth } from './gm-font.js';
 import { drawWingdings, wingdingsWidth, wingdingsHeight } from './wingdings.js';
 
