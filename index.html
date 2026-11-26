@@ -8,7 +8,7 @@
 <meta property="og:site_name" content="THE_M3NU">
 <meta property="og:title" content="THE_M3NU">
 <meta name="twitter:card" content="summary_large_image">
-<meta property="og:url" content="https://rrumeerd-sirk.github.io/">
+<meta property="og:url" content="https://rrumeerd-sirk.github.io/m3nu/">
 <meta property="og:image" content="https://rrumeerd-sirk.github.io/m3nu/og/device-2.png">
 <meta name="twitter:image" content="https://rrumeerd-sirk.github.io/m3nu/og/device-2.png">
 <link rel="icon" href="/m3nu/favicon.svg" type="image/svg+xml">
@@ -170,8 +170,8 @@
 </div>
 
 <script type="module">
-  import { runRoom } from '/shared/room.js?v=jevil1';
-  import { loadPrefs, savePrefs } from '/shared/device.js';
+  import { runRoom } from '/m3nu/shared/room.js?v=jevil1';
+  import { loadPrefs, savePrefs } from '/m3nu/shared/device.js';
 
   const canvas = document.getElementById('room');
 
@@ -200,9 +200,9 @@
         room.suspend(true);
 
       },
-      base: '/assets/room/',
-      mantleBase: '/assets/mantle/',
-      tvBase: '/assets/tv/',
+      base: '/m3nu/assets/room/',
+      mantleBase: '/m3nu/assets/mantle/',
+      tvBase: '/m3nu/assets/tv/',
     });
   } catch (err) {
     document.getElementById('failed').style.display = 'flex';
