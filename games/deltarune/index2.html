@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>ut test</title>
+  <style>
+    body { margin: 0; background: black; }
+    canvas { display: block; margin: auto; image-rendering: pixelated; }
+  </style>
+</head>
+<body>
+  <canvas id="game" width="900" height="1200"></canvas>
+  <script src="main.js"></script>
+  
+
+  <script>
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'b' || event.key === 'B') {
+            window.location.href = 'rudebuster.html'; 
+        }
+    });
+  </script>
+</body>
+</html>

@@ -27,13 +27,17 @@ const BOARD_BLUE = '#2F38B0';
 
 
 
+const WEB_PORTS = [
+  { name: 'ADOFAI 2014 BACKUP', href: 'games/adofai/', ready: true },
+  { name: 'BEATBLOCK WEB', href: 'games/bb-web/', ready: true },
+  { name: 'DELTARUNE WEB', href: 'games/dr-web/', ready: true },
+  { name: 'UNDERTALE WEB', href: 'games/ut-web/', ready: true },
+];
+
 const DEVICES = [
   { name: 'DELTARUNE WEB BATTLES', href: null, ready: true, submenu: 'deltarune' },
-  { name: 'ADOFAI 2014 BACKUP', href: 'games/adofai/', ready: true },
-  { name: 'BEATBLOCK WEB-PORT', href: 'games/bb-web/', ready: true },
-  { name: 'DELTARUNE WEB-PORT', href: 'games/dr-web/', ready: true },
+  { name: 'WEB PORTS', href: null, ready: true, submenu: 'webports' },
   { name: 'MUSIC PLAYER (W.I.P)', href: 'games/music/', ready: true },
-  { name: 'UNDERTALE WEB-PORT', href: 'games/ut-web/', ready: true },
   { name: 'WINDOWS 11 IN BROWSER', href: 'games/win11/', ready: true },
 ];
 
@@ -198,6 +202,9 @@ export async function runRoom(canvas, opts = {}) {
           } else if (d.submenu === 'deltarune') {
             play(menuSelect);
             startDeltaruneSelect();
+          } else if (d.submenu === 'webports') {
+            play(menuSelect);
+            startWebportsSelect();
           } else {
             play(menuSelect); startLaunch(d.href);
           }
@@ -265,6 +272,7 @@ export async function runRoom(canvas, opts = {}) {
   let deviceSel = 0;
   let attackSel = 0;
   let deltaruneSel = 0;
+  let webportsSel = 0;
   let plugged = false;
   let notBuilt = 0;
 
@@ -286,6 +294,11 @@ export async function runRoom(canvas, opts = {}) {
   function startDeltaruneSelect() {
     screenState = 'deltarune';
     deltaruneSel = 0;
+  }
+
+  function startWebportsSelect() {
+    screenState = 'webports';
+    webportsSel = 0;
   }
 
   const LAUNCH_DOT = 10;
@@ -433,6 +446,25 @@ export async function runRoom(canvas, opts = {}) {
           } else {
             play(menuSelect); startLaunch(d.href);
           }
+        } else { play(menuMove); notBuilt = 90; }
+      }
+      if (pressed.has('x')) {
+        screenState = 'device';
+        play(menuMove);
+      }
+      pressed.clear();
+      return;
+    }
+
+    // Handle webports selection screen
+    if (screenState === 'webports') {
+      const list = WEB_PORTS;
+      if (pressed.has('u')) { webportsSel = (webportsSel + list.length - 1) % list.length; play(menuMove); }
+      if (pressed.has('d')) { webportsSel = (webportsSel + 1) % list.length; play(menuMove); }
+      if (pressed.has('z')) {
+        const d = list[webportsSel];
+        if (d.ready) {
+          play(menuSelect); startLaunch(d.href);
         } else { play(menuMove); notBuilt = 90; }
       }
       if (pressed.has('x')) {
@@ -616,6 +648,50 @@ export async function runRoom(canvas, opts = {}) {
         const y = top2 + i * lineH2;
         if (y + lineH2 < SCREEN_Y || y > SCREEN_Y + SCREEN_H) return;
         const chosen = i === deltaruneSel;
+        const colour = chosen ? '#ffff00'
+          : (d.ready ? '#ffffff' : 'rgba(255,255,255,0.66)');
+        const w = textWidth(boardFont, d.name);
+        const x = Math.round(cx2 - w / 2);
+
+        drawText(ctx, boardFont, d.name, x, y, { color: colour });
+
+      });
+      ctx.restore();
+
+      // Hint
+      ctx.font = '14px "Courier New", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.fillText('Z: Select  X: Back', cx2, SCREEN_Y + SCREEN_H - 15);
+    } else if (screenState === 'webports') {
+      // Draw webports selection screen
+      ctx.fillStyle = BOARD_BLUE;
+      ctx.fillRect(SCREEN_X, SCREEN_Y, SCREEN_W, SCREEN_H);
+
+      const cx2 = SCREEN_X + SCREEN_W / 2;
+      const FONT_H2 = 20;
+      const lineH2 = 34;
+      const pad2 = 20;
+
+      const list = WEB_PORTS;
+      const listH2 = list.length * lineH2;
+      const room2 = SCREEN_H - pad2 * 2 - 30;
+      let scroll2 = 0;
+      if (listH2 > room2) {
+        const want = webportsSel * lineH2 + lineH2 / 2 - room2 / 2;
+        scroll2 = Math.max(0, Math.min(listH2 - room2, want));
+      }
+      const top2 = SCREEN_Y + pad2 + 30 - scroll2;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(SCREEN_X, SCREEN_Y, SCREEN_W, SCREEN_H);
+      ctx.clip();
+
+      list.forEach((d, i) => {
+        const y = top2 + i * lineH2;
+        if (y + lineH2 < SCREEN_Y || y > SCREEN_Y + SCREEN_H) return;
+        const chosen = i === webportsSel;
         const colour = chosen ? '#ffff00'
           : (d.ready ? '#ffffff' : 'rgba(255,255,255,0.66)');
         const w = textWidth(boardFont, d.name);

@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>gemene buster</title>
+<style>
+/* gebruik de ut font. anders gwn courier new.  */
+@font-face{font-family:undertale;src:local("Determination Mono"),url("font/DTM-Mono.otf")}
+body{margin:0;background:#000;color:#fff;font-family:undertale,"Courier New",monospace}
+canvas{display:block;margin:auto;width:min(100vw,1200px);height:auto;image-rendering:pixelated;touch-action:none}
+/* mobiele knoppen (alleen op touch) */
+#pad{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:space-between;align-items:flex-end;padding:0 max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));pointer-events:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:none;z-index:5}
+#pad[hidden]{display:none}
+#pad>*{pointer-events:auto}
+#dpad{position:relative;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.5);touch-action:none}
+#dpad i{position:absolute;width:0;height:0;border:0 solid transparent;opacity:.6}
+#dpad i.on{opacity:1;filter:drop-shadow(0 0 4px #fff)}
+#dpad .u{left:64px;top:14px;border-width:0 11px 18px;border-bottom-color:#fff}
+#dpad .d{left:64px;bottom:14px;border-width:18px 11px 0;border-top-color:#fff}
+#dpad .l{left:14px;top:64px;border-width:11px 18px 11px 0;border-right-color:#fff}
+#dpad .r{right:14px;top:64px;border-width:11px 0 11px 18px;border-left-color:#fff}
+#acts{display:flex;align-items:flex-end;gap:14px}
+#acts button{width:68px;height:68px;border-radius:50%;padding:0;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.5);color:#fff;font:inherit;font-size:26px;touch-action:none;-webkit-tap-highlight-color:transparent}
+#acts button.on{background:rgba(255,255,255,.35)}
+#bA{margin-bottom:44px}
+#bN{display:none;width:52px;height:52px;font-size:20px}
+/* room editor */
+#editor{position:fixed;left:0;right:0;bottom:0;display:none;flex-direction:column;gap:6px;padding:8px max(8px,env(safe-area-inset-left)) max(8px,env(safe-area-inset-bottom));background:rgba(0,0,0,.88);border-top:2px solid #555;z-index:6;user-select:none;-webkit-user-select:none;font-size:15px}
+body.editing #editor{display:flex}
+body.editing #pad{display:none!important}
+#editor .row{display:flex;flex-wrap:wrap;gap:6px}
+#editor button.on{border-color:#ff0;color:#ff0}
+#editor button,#edBtn{font:inherit;color:#fff;background:#222;border:2px solid #777;padding:4px 10px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+#editor button:hover,#edBtn:hover{border-color:#ff0}
+#edBtn{position:fixed;top:max(8px,env(safe-area-inset-top));right:max(8px,env(safe-area-inset-right));z-index:6;background:rgba(0,0,0,.55);opacity:.75}
+/* muziek paneel (knop I) */
+#music{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.65);z-index:9}
+#music .mbox{background:#000;border:3px solid #fff;padding:12px 16px;max-width:min(560px,94vw);max-height:92vh;overflow:auto;font-size:15px}
+#music .mh{color:#ff0;margin-bottom:8px}
+#music .mrow{display:flex;align-items:center;gap:6px;margin:6px 0;flex-wrap:wrap}
+#music .mi{flex:1 1 150px;min-width:130px}
+#music .ms{color:#999;font-size:12px}
+#music .msg{color:#f77;min-height:18px;font-size:13px}
+#music button{font:inherit;color:#fff;background:#222;border:2px solid #777;padding:3px 8px;cursor:pointer;touch-action:manipulation}
+#music button.on{border-color:#ff0;color:#ff0}
+#music button:disabled{opacity:.4;cursor:default}
+#musBtn{position:fixed;top:max(8px,env(safe-area-inset-top));left:max(8px,env(safe-area-inset-left));z-index:6;font:inherit;color:#fff;background:rgba(0,0,0,.55);border:2px solid #777;padding:4px 10px;opacity:.75;cursor:pointer;touch-action:manipulation}
+#musBtn:hover{border-color:#ff0}
+#muteBtn{position:fixed;top:calc(max(8px,env(safe-area-inset-top)) + 40px);left:max(8px,env(safe-area-inset-left));z-index:6;font:inherit;color:#fff;background:rgba(0,0,0,.55);border:2px solid #777;padding:4px 10px;opacity:.75;cursor:pointer;touch-action:manipulation}
+#muteBtn:hover{border-color:#ff0}
+#owStart{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000;z-index:20}
+#owStart button{font:inherit;font-size:28px;color:#fff;background:#222;border:3px solid #fff;padding:10px 32px;cursor:pointer}
+#owStart button:hover{border-color:#ff0;color:#ff0}
+</style>
+</head>
+<body>
+<!-- alles in 1 canvas -->
+<canvas id="game"></canvas>
+<button id="bt" type="button"></button>
+<!-- mobiele knoppen: dpad + A (praten) + N (volgende aanval, alleen in battle) -->
+<button id="edBtn" type="button">bewerk</button>
+<button id="musBtn" type="button">buster</button>
+<button id="muteBtn" type="button">mute</button>
+<div id="owStart"><button type="button">PLAY (LOUD SOUND)</button></div>
+<div id="editor"></div>
+<div id="music"></div>
+<div id="pad" hidden>
+  <div id="dpad"><i class="u"></i><i class="d"></i><i class="l"></i><i class="r"></i></div>
+  <div id="acts">
+    <button id="bN" type="button">N</button>
+    <button id="bA" type="button">A</button>
+  </div>
+</div>
+<script>
+// =====================
+// doos dialoog
+// =====================
+
+const DIALOOG = {
+  up:    ["* Doos 1."],
+  left:  ["* Doos 3."],
+  right: ["* Doos 4."],
+  front: ["* Doos 5."],
+  back:  ["* Doos 6."],
+  // als je alles inspecteerd. HOEZO??
+  alles: ["* je hebt alles geinspecteerd"]
+};
+// hoe snel de letters verschijnen (hoger = sneller)
+const TYPSNELHEID = 0.6;
+
+// =====================
+// config
+// =====================
+// grootes
+const SCALE = 3, SPR_W = 16, SPR_H = 30;     // sprite
+const BASE_W = 400, BASE_H = 200;            // groote loop veld kris
+// gevecht instellingen
+const BATTLE_TIME = 15 * 60; // gevecht duurt 15 sec (60 fps)
+const ZW = 380, ZH = 380, HS = 40, PLEN = 720; // gevecht gebied groote enz
+
+// canvas naar de overworld groote veranderen.
+const canvas = document.getElementById("game");
+canvas.width = BASE_W * SCALE;
+canvas.height = BASE_H * SCALE;
+const ctx = canvas.getContext("2d");
+const ZX = (canvas.width - ZW) / 2, ZY = (canvas.height - ZH) / 2;
+// de font voor alles
+const FONT = "undertale,'Courier New',monospace";
+
+// =====================
+// knoppen -pijlen -wasd -muis?(OSU)
+// =====================
+const keys = {};
+const K = (...n) => n.some(k => keys[k]);
+let ptr = null;
+addEventListener("keydown", e => {
+  const k = e.key.toLowerCase();
+  if (k.startsWith("arrow") || k === " ") e.preventDefault();
+  if (!keys[k]) onPress(k);
+  keys[k] = true;
+});
+
+addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+// buiten focus laat alle knoppen los
+addEventListener("blur", () => { for (const k in keys) keys[k] = false; });
+// muis naar bewegings script
+function pt(e) {
+  const r = canvas.getBoundingClientRect();
+  return { x: (e.clientX - r.left) * canvas.width / r.width, y: (e.clientY - r.top) * canvas.height / r.height };
+}
+// muis shit
+canvas.addEventListener("pointerdown", e => { const p = pt(e); if (mode === "edit") { editDown(e, p); return; } if (mode === "world" && clickWorld(p)) return; ptr = p; });
+canvas.addEventListener("pointermove", e => { if (mode === "edit") { editMove(pt(e)); return; } if (ptr) ptr = pt(e); });
+addEventListener("pointerup", () => { if (mode === "edit") editUp(); ptr = null; });
+
+// =====================
+// mobiele knoppen (dpad, A, B, N)
+// =====================
+const pad = document.getElementById("pad"), dpad = document.getElementById("dpad");
+const bA = document.getElementById("bA"), bN = document.getElementById("bN");
+// laat de knoppen zien op touch apparaten (of bij de eerste aanraking)
+if (matchMedia("(pointer: coarse)").matches) pad.hidden = false;
+addEventListener("pointerdown", e => { if (e.pointerType === "touch") pad.hidden = false; });
+pad.addEventListener("contextmenu", e => e.preventDefault());
+// dpad: zelfde toetsen als de pijltjes, je kan ook over de dpad slepen
+const DIRS = { u: "arrowup", d: "arrowdown", l: "arrowleft", r: "arrowright" };
+function dpadSet(e) {
+  const r = dpad.getBoundingClientRect();
+  const x = (e.clientX - r.left - r.width / 2) / (r.width / 2), y = (e.clientY - r.top - r.height / 2) / (r.height / 2);
+  const on = { l: x < -0.3, r: x > 0.3, u: y < -0.3, d: y > 0.3 };
+  for (const d in DIRS) { keys[DIRS[d]] = on[d]; dpad.querySelector("." + d).classList.toggle("on", on[d]); }
+}
+function dpadOff() { for (const d in DIRS) { keys[DIRS[d]] = false; dpad.querySelector("." + d).classList.remove("on"); } }
+dpad.addEventListener("pointerdown", e => { e.preventDefault(); dpad.setPointerCapture(e.pointerId); dpadSet(e); });
+dpad.addEventListener("pointermove", e => { if (dpad.hasPointerCapture(e.pointerId)) dpadSet(e); });
+dpad.addEventListener("pointerup", dpadOff);
+dpad.addEventListener("pointercancel", dpadOff);
+// A = e (praten), N = n (volgende aanval)
+function padBtn(id, key) {
+  const b = document.getElementById(id), up = () => b.classList.remove("on");
+  b.addEventListener("pointerdown", e => { e.preventDefault(); b.classList.add("on"); onPress(key); });
+  b.addEventListener("pointerup", up); b.addEventListener("pointercancel", up); b.addEventListener("pointerleave", up);
+}
+padBtn("bA", "e"); padBtn("bN", "n");
+// in battle: N erbij, A weg
+let padMode = "";
+function padSync() {
+  if (mode === padMode) return;
+  padMode = mode;
+  edBtn.style.display = (mode === "world" || mode === "edit") ? "" : "none";
+  edBtn.textContent = mode === "edit" ? "speel" : "bewerk";
+  musBtn.style.display = (mode === "world" || mode === "edit") ? "" : "none";
+  bN.style.display = mode === "battle" ? "block" : "none";
+  bA.style.display = mode === "battle" ? "none" : "";
+}
+
+// bewegings richtingen
+function vec(cx, cy) {
+  let dx = (K("arrowright", "d") ? 1 : 0) - (K("arrowleft", "q", "a") ? 1 : 0);
+  let dy = (K("arrowdown", "s") ? 1 : 0) - (K("arrowup", "z", "w") ? 1 : 0);
+  if (!dx && !dy && ptr) {
+    const vx = ptr.x - cx, vy = ptr.y - cy, d = Math.hypot(vx, vy);
+    if (d > 8) { dx = vx / d; dy = vy / d; }
+  }
+  return [dx, dy];
+}
+
+// =====================
+// sprite
+// =====================
+// foto maken en laden
+function load(src) { const img = new Image(); img.src = src; return img; }
+// sprite foto locatie.
+const kris = {
+  down:  [0, 1, 2, 3].map(i => load("kris/down_" + i + ".png")),
+  left:  [0, 1].map(i => load("kris/left_" + i + ".png")),
+  right: [0, 1].map(i => load("kris/right_" + i + ".png")),
+  up:    [0, 1, 2, 3].map(i => load("kris/up_" + i + ".png"))
+};
+// de hart foto.
+const heartImg = load("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAYAAACtWK6eAAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH3woeETQH7WCTRAAAAB1pVFh0Q29tbWVudAAAAAAAQ3JlYXRlZCB3aXRoIEdJTVBkLmUHAAAZB0lEQVR42u2daXMkyXnff3nU0dWNBjCzs8tdihTJpRmWqZBpmw47/NofyQoFTS25JEXRdMgv/H381g47JFrhg0Hborg8djkzOyf6qisPvyhksYAdDsAYgDsNPL+ICjQaha7qyuefz5GZVSC8NsQYiTHivSfGyG63oygKrLVycYTbjTGGGCPOuVEoWmu5MIKQ6LpuFEfTNGfEIwi3mqnnCCGglBIPItwslFIopcbftdZkWfaJfc5jrR3F0bYtMcYznyFCEfaeZMTpZxKGMQZrLXmejwLRWmOtRWuNMYa+70dhhBDOCETCK+FGiSR5iPPe5GUk77HZbM4k5+I5hBsXYqWQaRo+TUWQBJCMv6oq6roePUfyHlOxiVCEG0GWZWdEMjXsGCN9349jHEkIfd+PVav0XgrPrLUSYgk3g5RjpPxiKpqp90gDgdOS7rSClcRx2fBMEPYqSZ+WZ5NonHOjh0jJ+Pmt73vquv6E95HwSrhRIVZiGhol0SilPiGK80Jp23YMw86LTxBuLOfDLufc6E2mQknJehLJdERdEG40U6+SBLHdbj/hUXa73SgW771MVhRuT44yLfuGEMYEfSqaGOOZJF4Qbk2YpZQaE/YkDu/9mRJxEkvf93LRhNvBtLqltT4z9jEVhrV29DKpCpZ+CsKtIs/zM0l4WZYvzFcE4VaQBDCdRpLn+ThpcZqrJK8zn8/lwgm3h982VjJN5mUUXfi9Mx3pftH7gnBjjPx8OJKmlr9se1GP/dveF4Qb4QGSYV8mJDkvlqqqxhxAEG4ESRAvMuoXTQA8v03HHc4LRxBe2DHvy4lODbnrOrIsGwfeLhMiee9HYZzPO2S0WrgxzOfzMwNuaZnqZf93Koq+72Wek3CzSAZ9finrRUn6ea/hvSeEIFUs4eWRy16d7Ol6ir+BK4mJ/rlSKoRw6UT/NnJV1/rre2Zre5mDxBivNCRKodk0N3nRiLaUgSVJ35vw6qpnuKZkP92bKollevOFadVLuGUh/b6caCrTXjXJ+KeeKXmroiho21asRDzIfoRYV01RFKMQAJqmIc/zcTFT27ZkWSaJvAjk9SflAVcZ7iQBJC9RliVd1505nnOOlMgLIpDXlhReXXXCnEq9yWskbxJCGJ/Zcf4G1III5LX1INeRg6THDaSwKh3Pe09RFLL0VZL015/rCnPSIOK0hKy1Hj2WJOm3m9du8OaqBqZ+n3xdruONvY5SnhEEEYggiEAEQQQiCCIQQRCBCIIIRBBEIIJwU/m9Dszs4+DVVXGVg2ByHcWDCIKEWIIgAhEEEYggiEAEQQQiCIIIRBBEIIIgAhEEEYggiEAEQQQiCCIQQRCBCIIIRBBEIIIgiEAE4XdGHvH6e+I2rwIUDyIIIhBBEIEIgiACEQQRiCCIQARBBCIIIhBBEIEIgghEEEQggiACEQQRiCAIIhBBEIEIgghEEEQggiACEQQRiCCIQARBBCIIIhBBEEQggiACEQQRiCCIQARBBCIIIhBBEIEIgghEEEQggiACEQRBBCIIIhBBEIEIgghEEEQggiACEQQRiCCIQARBBCIIgghEEEQggiACEQQRiCCIQARBBCIIIhBBEIEIgghEEEQggiCIQARBBCIIIhBBuH7UPp7030CUptsvvr6ntiYeRBBEIIIgAhEEEYggiEAEQQQiCCIQQRCBCIIIRBBEIIIgiEAEQQQiCCIQQRCBCIIIRBBeQ2yM+7e04kdKScvtGftoZ+JBBOECVAjh1n75/661rEy8gH8awq1211ZJuCK8rAe95fYhIZYgvMyDaH17NfLX0v4X96D6dvehdl+rC8Lvh9tuHxJiCYIIRBBEIIIgAhEEEYggiEAEQQQiCPsvkDzPoQS4CyXMAYPGAuQAxXBv7lfYchZUGg4owFqww9ELit9JpkoplFLjAJYxBqUUxhgAsiw7s39RFC/8f+GSBnLbBwq11nRdR0VGoXO2LWwiBBQ6FmxCzsJswb/ahXKm5yTAQr9BqT5GKUPUHpu1tP0SWF34GXme03Ud8JsBLO89Wmu898NxnBu+mLWUZclmszkjKu89Mjh6eWKMaK25rZNatdYarTUdPatwnxDvER3okEHXsjA9tAHMK259y11lKbiP4QAdPURo+1MPdRmRnRo/QFmWABwcHBBCQGuNUooYI3me45xjs9mMXiOEgHNuFIe1Vqz/kgK5zTO+tXNuMJ4qx+eg5hZvC3aqh8KwDg1YQ4BX2gyAOqKrA4qnpEiotMdQPLq0u0/hUdu2AKzXawBCCKM4kpdJIVcIYfQi1lqstWfEJlwc0t7a75/i+Bg9MYDG4qIjAipqOqXIOYT4/JUOFLxF2Q5FgVYtsCDqDXmAzgKXtNe2bdFa/1YP0LYty+VyFEnyKqk3TB1Cnuf8SCmJtS5gX58MdWU5SOpNLVCoBSEaQneCzmfQ1ZhC4dqnxOLVDpTZSO1B6xZTgOs2KFuhuh1ZPKLncgLM8xyAvu9HDxFjHEVQFMUojhQ753k+5ijW2jHcEi6HMWa8frfSgwBoUxJigwrgI/io0C6ys7BQSwi7VzqQjw5jFkCPUgVabwh6SeU37HAXPnUweYIkBOcc1lr6vh8rVzHGMYxKr6cNm2LpacjQdd2Ys6R8LP2vMWYMz16W2L+Oz0z8OqhpKHnZwoT3fqwMSig6FFvHHkKpIcRSeGyMEBYsVEvYrtDzV+yFUOA3YEDhiSGAeU4XwRYLXLu5dEz824STDDt5l6nHmO6bjCDlLDHGcb+U8KfkdF97z/Q90ne57P7T65uu262uYqVeA9VjosYbB9EQFVBsiLFHV1dSDsEZIGRE5Qbf1Vu8Urhuc2lhpJ+pPp9+Tw2cvk/yHtNxkWQoxhj6vv+E2KYGMv3cfa0+pQLFtCR+3vin3z39TB1N2udWV7GMMXtR8gwhUJblmVzjRQ3bdd2Z0KBtW4wxYx6SjGQqgJsYX2utR0+aBlGnxYoUXk7zOeEFIdZoHGp/GhygruszoVN6nZL4JPrkSbz3ZzqCoijG/OKm9pApNJoWKKadSlmWPHv2bBxTEl5wDc9PzXidPYj3fmzMsixRSo2Df9OBwqZpxpwk9Z5TUql3+vtNo23b8TtmWYZzjr7vx/BTa03TNLd+KsmFAtm3aRepUZumIYQwlnlTrK2UGsWTwqtp75mqX8lIUoJ+0yiK4kxJ3FpLlmVjcWLqcW9zjnFhiJXKmyG+3hfpfJm37/vxdQolksFrrTHGkGXZOOLunBvF0XXd6F1uqnFMiw3puiXPmWXZmXBVvMgFVax96EFjjMznc0II49hH8g6pPJsMYhpqTb9fEkee52N4Np3oeJMwxnyiKmetpSgK+r4/I4rp1BzhnECS0bzuZFnGdrtFKTWWbpMXmU49SWHVVDBJCNNBwenYx4vylJsgkOkctGn1KnUqiRSKCS8QSEpQTYTAgtJDUB7lDNGBUm8QHcNY8atsqsT0EHUgj3eIChQaTcTEdy480Wmvl845JZ/TfVIP2ff9aCBTQ5iGYl3Xjd5jKqjzZc99zFFSaDntANL1mw6sni+ETGcOpIHGWx9iAaisIpgN3kDggBAM0Spq9wSlD155wZRzDSorcOEAxVN0BkpBbi3e/PrSvWLKI5IgplW4aWydxkKScaRyb2r0tF96nYylbdsxd0kFgH2scv2u59913ZlrM51ZsC+VzmsViHc1eIPyFseKqDo0lsICen0FLh+gJ+phUqLyJTF2dM5daibTdN5Vmmx43oNM35smo2luVhpBr+uaLMtG75LymakxpOPN5/O97EV/1/NP3rXruvEa5nn+ifGnW1fFGsuCsSBmDaqfoXEYWwAtOsyh2RJnr3Ygp0A1B5hyhWKG9zsUdwjxKSYv8W1zYZKeevzplJFpyTIlpedHy9M+06W5L0rMp/OurLUYY9hut3vZsGVZnjn/i9Z0pEqgtXa8BsmrSIgFBBytg4CnwxB0Rw2c+AaqAxT2lbYeRSx3tERQw8xgo9eUFfj24pHc8wadhDBt+Be9l/73/Mh6el0UxZlqTwoznHPjfufXte8Dv+v5p04mFTCmM6RvM6MHcfkwgbBr3+SOesiMBTvWlJXH7dY0r1joKfycEkvkhPb0yFoFmt2C6rBnd3LxZ1RVxW63G3v6VKKdDgKmnjDtk/5nKqJpzpKS2ZSzTKe2HxwcsF6vx332jen5X+RBUlUvdTAprEqDr7dVKOqMVsohH8hR+C5CNsf7mkIf4/tnr3QgnweyzmKYU6stujgitI/JgN5w4YrClE+kECs12GKxGNeeT1+n8uY0F0kNXRQF3vsxiZ/2tEkk00rZRTH467oe5LLnP81bpp3MNOy6retCRoFU3MFlDV3YkXuLJWfHDlSOiR3+VSczVsAWDEt8sQEfsORE1+GpgIsXZE17shfV9l/0/vneryiKsUed3rHj/LqPqUe5aELj6yiQf2mtuuz5v+j6nu+IBEEQBEEQBEEQBEEQBEEQBEEQhJuFmsw2eSVy5fARDDkdOYoN2XAAWpOB3/MZoSaj8D0R6IHIgpxumLmmoItyt/hPk+uyPxW//e6VnODzVnH0mXu4Rx/gnaI4eovYtvw0+yz/5Fv/ie2er2qdG/jb7/5rvtx/hCoK2ucPMTZi732R5w8ecVTIiPOnyXXZn/XqahbDHGUt9ZOHlKXFFsd0J4G8+yVfKBz9DVjy3Xv4Qv0LVPtruv5dirtvENtn1E8ecpRFvCrESj9Frsv+bP7+313JCS6MZRULoIbwgCWRR9/8Knnu8UpD3O+7h3ilyfKcLr7Lve//mBUKtAJmLFXLxsvd4j9Nrsv+bLiieXY73wI9GYFZbll1CpttIUR8rIDNfgskVhBqbKZYoVjmUHc9PZ4dgSDPQ/1UuS77s1pdTc/u8gKipu8csetBZ0RVg8qwNOx7/2ppQHti7EErdl2PI4Pc4lRAd61Y6afIddmfvarAJ3ctwYPLZ7jOg57j45zGa6xV7PtyAmsVW1eS6Rz0DhdWkFtsV6MNyJ2lPl2uy/7sVa1kcHGJYgWhxxKw7oTcHaGKQ5zb/0X/zvXkWUnWnlC6ExwRF4ayr4tLiCux0k+zfa7J/nQ+yIQsrwBNpjRzA6gClCUrhpuKGQ0oCyobHsipCxTDOih0RggrvALlHA5Ni8Lbksxvcez/GIHDkvkt3pa0KBwa5RxeQQir4VoBbwKojALITvN4Y/PhufOqBIrhDwqWnI5CFQuK9LosKRkeT19YwBRY9IXtkwOUFowe2gSN0mDy4QGqBstyeJtcDS80R9wDmGuYa+4BmiNAD/vo4RwNFpWffq79EkcayCtK4K4CsnI4vrJoC8cZDHcZmAMzcg3oJTbZS3aPQwB7ADo7vQYGyIYVfMUcix2uSD4bzjsruatOPzevhnOwX6ICVK6vzf7s+of/jLy+D7WH+edw0eK7DcUsh3ZDh8VWd4jN+jc3elaa4BRd31BmiiZqZt/9+1vdg1kV6VXGx+oAcHTlIXH7mFxDFyLGBpyLlLQ0usKUO3b1ghkbel/TqeFpwLSn9/wql8SwY9m1nHz3a7C9/9L20ZuOtlAUzS/AfhFMQH377/CuoNCeVtU8/96/otnV2FkG7ldkJkL4GrtuuK1TlR+AfkDvZ2A/h6t7ymqGfu+/QKcxwHH8GT/9s69QFSVlGeD5Q/rZ20QLeWxptj3BzMmyHuOfoGdLdps58+//T5wBF6Byj/jF+3/CIkZM7IkmQ+0egn6L+Q/+F67d0p12MD2OVTGn+7fvktX34egtmkazaxu+/O//Hw6I1xjf6o+f1UTeJi6WdER8DGSzO7DtQS3J4wFq4zBZiUVD30Ln0d5RFguwR5RK3XoXH4MHW4GuKfwKtXtMoUEFyGczjANUS8MSshZfF7jiEA003hOURQMqNjQshkTTO0IGfr2+sH22haFwORx8kUehBZdR0oPd0IYKNMS6Y2YD2fMPsLpiE+Bks6aaH1PNjznZrNkEsLoie/4BMxuIdTfc+8bOWeeKlYc7haL0NbGD2r4BXUW3ewrMKWf30DqQ5QrdWWgUs2xYVE2woGd0EQ6pMf1D6NcQDO38HiwD2z//IspCiaUvjll2EL/5OegqavsGsYPS19wphnNZ5wrs/PoEcvTmGxB+Te8ycgLF9mO074eWnR3igkOpHatdoLMHpyFCRbQlrVOsXPYarsj+FMrAi3uU3QnLvqa1FSFq2qDpjKbbrYj6gPj+HxP//AC78Vha8vYha3UaW4WMUkOGw5YRG2pKDxt3xOruZy9sn1nQ0P0faFdk1RfA/JpGw0EHR+YJRQ+aQDQ7mIFSRyzsMYeLCh5/AI8/4HBRsbDHKHUEM4hmhyZQ9GDdGoImmgxcD65n23hm1YyMJyzUG7jmES48RPUedgVkM6LvUCiCtqiYgQ+UZcG201Aew/KAVregc0JtCe4pzZ++TWOhaDZ8/MN/PNwQkCfMqhnbxo/HjyaDoIdzuy6BVA9+itoZcj2DzsDybTZ2CaZj3TwnLDKaLLAsG/KZBb+irZ+iYk2hnnJgdtBvRCHbRwydpMJ/4w7tX36VJQFlZ4Bm894f0m0d5Et0VuHsks17f0j//S9BAKs7Og9GgWmGm71FO0fFLcer/3ph++juMRy9y+PuTY5W/xuKu5QBahY8V0sCBuIJ3n1Me+crrB6dwHpNbSri/A5xfofaVLBes3p0QnvnK3j3McQTAgYP4CzBF3B0TG01VVXB5jHEjyF7ijUZ1keKIw/qMXhQ+TEPjKKJBoND0VI3LbPZjN5FOldT+jWF+5A6P0HP79AfHrL9sz+m+d4/pHgcsCEfjrF5TFVV1FbD0fFwLs5ynRM1rPkPv8bqCuc+HJLxOCRSv3rvH3FogV0NlGCeov70Q7B3ueM/pFWwVUfM/Ec8/MG/AB7cboGYCu934CLN/B2qfs0vvvs1jr/1E1CGPG+AjtDN8W5HfO/LNLoka4CY4XTP3BS0PTgVoLK43RYLnOg/4uj9H720fdRf3SfvNiizo9WOzb85IlOKRm1QLsPg6fJDivf/njL8Z+Z2xhNVEb/5EWRvAjDrP0L9Vc3d+ISt+ymNhvb9dzF48owhvKaF7hn4DVof06kSNbPM3vs5XhdYItZ3NPmbkEX+YPszfvWdPwLdYiL4mcE3Hq0s0WvabEGeLaFeMfeWxm0pZ0dk2f+FvoK7BXXdYsu7xNoOCb/fQAfzNPiXDRHntXgQ5neIfUNphlKIzw01cJh5aLZD3KiOWOl3mFVzcI/YRtjqGSXPaYDPfeO/3XoHYtyOXs9pdEW5eQChJfOR+I1DDmPPpmlh8TbP/Bb3zT+gXiwpuwD+ASbGoSIVPY4KdAFdTRnBFUd8/gc/ubB9iI5O7zguHARY/PAnrPUBcyDmkTZfUHz7x6fxXMETHyBb4XYR6kdQPxpeZ6vhb6d1teLbP6bNF2zDgq2a4/IFrjUUZjHcV6woCK7AG00RGozvaPI58Ayz/YgHgPrOL8EOsz1i44cZOptnGNtRhQ2s7xNx+KpHLz5DbB9QF/+ArTewLlHlOwRXYE7vW1aY4RxcPpzTNiyuL8TKV09P6/wZdEvoSjwZbdAwK+hsQ1uuWfKMercbqlh6KDO2AaK2nKjs1gskAMpvIXjKv/gIdmtsVkJe8OG3/oQFJTz5iLsHnydoxez5h7hCob5f47Ujd264kXcRsWFDpU5Tu96xUhe3z6wPEBSPdxnWgzEW43sihxSdI3YeaJlrR09GGVvwPcrO6Gdv0s/eHMJB31PGlp6MuXZAS+w8eazRekvXbbBodLQQHcbXFL2HWOJiJMsDebcm79rhBoQAqoa+wjIDrwkBQnZMUEtW2QyKkpAFlF+R1z9D2QWz9pfMbQEqo9w9oeg9xtcQHTpaLJqu26D1ljzW1xdidafNO9ShVhg0XgcKFwgEciroOggZqIjzPTGCiuvhWeo4VLS3Pk8vNdTBMgc67VnNPsuy/zm4JZU5GcKr5V1Cd5/O3qEvSo6++SMqHLtY0sVmGI1vn+MAl0qXYQMBPP6l7TOYSP+bKRW9Axy7kIynRUXYOkBtUBFoM0zBmEOaYnjP0ePVhu3p4+wjLX0Ip+0NRAO0aBSegLEFyu8IaLaTkusQ9SiUB2jYqYCJGg/ouCbgWTYWtINM4eo5eRfgzoJ1eI4JgcptwRqemUOO4895kr/LUjfMTjZEA7E8pts+uz4PItn11VCHBUo5trqjD7Dsn0DxGdqoYP4WsXyb+OQ+1m2p/DMOuweD8Vgwodn/MrcKL90uomkDy//4M5p8A37LrrlL1a3BwDYe8NW/+Gv6+pC3uoZZ9wjmYbDe7QnX+RBrEciV0aPmFrIIWMrvf8yzxmBVjV6tiB7C7A3IjwjeYL/zKw5VzzZkv+mZ9zkHi/ql20XMfEZoe2b/7j48/xlvzUpoK7ZhwdH3/gf3syOyxVuwegiqhdPPzAl0SgTy+hsILXHrT+OKgla3vPOXf4s6WECE0D7F5oo+aLIf3KcgUCsweU6w9/Z/HEiFl24XGmJ2SN4DxTuw+CI8+QB/9HnmRY3THhUDuKdgGuLhZ1n3R9BbMp0RrvERk/8fjhhoVQa3HIUAAAAASUVORK5CYII=");
+
+// =====================
+// status
+// =====================
+// animatie status en snelheid
+const player = { x: BASE_W / 2 - SPR_W / 2, y: BASE_H / 2 - SPR_H / 2, speed: 2, dir: "down", frame: 0, timer: 0, moving: false };
+// alle status modussen
+let mode = "world", tr = 0, fr = 0, bt = null;
+let worldIdx = 0, warp = null, posterLock = false; // worldIdx: 0 = eerste wereld, 1 = tweede wereld (via de poster)
+const btn = document.getElementById("bt");
+btn.onclick = () => { toggle(); btn.blur(); };
+
+// overworld/battle toggle switch
+function toggle() {
+  if (mode === "edit" || warp) return;
+  if (mode === "world") { mode = "trans"; tr = 0; dlg = null; owSync(); }
+  else {
+    mode = "world"; ptr = null; stopMusic();
+    if (fighting) fighting.alive = false; // na het gevecht is die enemy weg
+    fighting = null; respawnEnemies();
+  }
+  btn.textContent = mode === "world" ? "" : "";
+}
+// hp. geen bullets. alles vers laden
+let lastPat = -1;
+function startBattle() {
+  mode = "battle";
+  const T = fighting ? etype(fighting) : ETYPES[0]; // welke soort vijand?
+  bt = { hx: (ZW - HS) / 2, hy: ZH * 0.65, hp: 20, inv: 0, dead: 0, pat: 0, pat2: -1, t: 0, tt: 0, acc: 0, pause: 60, auto: true, bul: [], left: T.time * 60, T };
+  let pat;
+  do pat = pickPat(); while (pat === lastPat && T.pats.length > 1);
+  lastPat = pat; bt.pat = pat; bt.pat2 = pickPat2();
+  playTrack(trackFor(fighting));
+}
+// kies een aanval uit de lijst van deze vijand
+const pickPat = () => bt.T.pats[Math.random() * bt.T.pats.length | 0];
+// rakuichi buster doet 2 aanvallen tegelijk (nooit 2x de botten)
+function pickPat2() {
+  if (!bt.T.combo) return -1;
+  const p = bt.T.pats.filter(i => i !== bt.pat && i !== 2);
+  return p.length ? p[Math.random() * p.length | 0] : -1;
+}
+// pattern switch script
+function setPat(n) { bt.pat = (n + PAT.length) % PAT.length; bt.t = 0; bt.tt = 0; bt.acc = 0; bt.g = undefined; bt.pause = 30; bt.bul = []; bt.pat2 = pickPat2(); }
+// alle knop toggles
+function onPress(k) {
+  // I = muziek paneel (in de ow en in de editor)
+  if (k === "i" && (mode === "world" || mode === "edit")) { toggleMusic(); return; }
+  if (musicOpen) { if (k === "escape") toggleMusic(); return; }
+  if (k === "m") toggleEdit();
+  if (mode === "edit") { editKey(k); return; }
+  if (k === "b") toggle();
+  if (mode === "world" && (k === "e" || k === "enter" || k === " ")) act();
+  if (mode !== "battle") return;
+  if (k >= "1" && k <= "7") { bt.auto = false; setPat(+k - 1); }
+  if (k === "n") { bt.auto = false; const p = bt.T.pats, i = p.indexOf(bt.pat); setPat(p[(i + 1) % p.length]); }
+  if (k === "0") bt.auto = true;
+}
+
+// =====================
+// items in de ow
+// =====================
+
+const IS = 24; // grootte item
+const SIDES = [
+  { id: "up",    name: "bovenkant",   x: 188, y: 14,  col: "#4a90e2" },
+  { id: "left",  name: "linkerkant",  x: 28,  y: 88,  col: "#4ae27a" },
+  { id: "right", name: "rechterkant", x: 348, y: 88,  col: "#e24a8a" },
+  { id: "back",  name: "achterkant",  x: 290, y: 36,  col: "#9a4ae2" },
+  { id: "front", name: "voorkant",    x: 86,  y: 140, col: "#e2e24a" }
+];
+// elke doos hoort bij 1 wereld (world 0 of 1). skin = welk plaatje uit box/ (up, left, right, back, front)
+const SKIN_IDS = SIDES.map(s => s.id), skinImgs = {};
+const skinImg = k => skinImgs[k] || (skinImgs[k] = load("box/" + k + ".png"));
+const skinCol = k => (SIDES.find(s => s.id === k) || {}).col || "#888";
+function makeItem(o) {
+  const skin = SKIN_IDS.includes(o.skin) ? o.skin : "up";
+  return { id: o.id, skin, name: o.name || "doos", x: o.x, y: o.y, world: o.world ? 1 : 0, lines: o.lines || null, col: skinCol(skin), img: skinImg(skin), pop: 0 };
+}
+const defaultItems = () => SIDES.map(s => makeItem({ id: s.id, skin: s.id, name: s.name, x: s.x, y: s.y, world: 0 }));
+const ITEMS = defaultItems();
+const liveItems = () => ITEMS.filter(i => i.world === worldIdx);
+const seen = new Set();
+let dlg = null;
+
+// hitbox systeem voor de dozen
+const feetBox = (x = player.x, y = player.y) => ({ x: x + 2, y: y + 20, w: SPR_W - 4, h: SPR_H - 20 });
+const itemBox = it => ({ x: it.x, y: it.y, w: IS, h: IS });
+const overlap = (a, b, m = 0) => a.x < b.x + b.w + m && a.x + a.w > b.x - m && a.y < b.y + b.h + m && a.y + a.h > b.y - m;
+const blocked = (x, y) => liveItems().some(it => overlap(feetBox(x, y), itemBox(it))) || solidRects().some(f => overlap(feetBox(x, y), f));
+// kan kris die item aanraken?
+const reachable = it => overlap(feetBox(), itemBox(it), 8);
+// checkt item verte
+function nearItem() {
+  let best = null, bd = 1e9;
+  const f = feetBox();
+  for (const it of liveItems()) {
+    if (!reachable(it)) continue;
+    const d = Math.hypot(it.x + IS / 2 - (f.x + f.w / 2), it.y + IS / 2 - (f.y + f.h / 2));
+    if (d < bd) { bd = d; best = it; }
+  }
+  return best;
+}
+// item inspecteren
+function openItem(it) {
+  it.pop = 30; ptr = null;
+  const f = feetBox(), vx = it.x + IS / 2 - (f.x + f.w / 2), vy = it.y + IS / 2 - (f.y + f.h / 2);
+  player.dir = Math.abs(vx) > Math.abs(vy) ? (vx < 0 ? "left" : "right") : (vy < 0 ? "up" : "down");
+  player.frame = 0;
+  const fill = t => String(t).replaceAll("{naam}", it.name).replaceAll("{pad}", "box/" + it.skin + ".png");
+  const lines = (it.lines || DIALOOG[it.id] || ["* ..."]).map(fill);
+  seen.add(it.id);
+  if (!seen.done && ITEMS.every(b => seen.has(b.id))) { seen.done = true; lines.push(...(DIALOOG.alles || []).map(fill)); }
+  if (!lines.length) lines.push("* ...");
+  dlg = { lines, i: 0, c: 0, top: player.y + SPR_H / 2 - camY() > BASE_H / 2 };
+}
+// enter om de dialoog te skippen
+function act() {
+  if (dlg) {
+    if (dlg.c < dlg.lines[dlg.i].length) dlg.c = dlg.lines[dlg.i].length;
+    else if (++dlg.i >= dlg.lines.length) dlg = null;
+    else dlg.c = 0;
+    return;
+  }
+  const it = nearItem();
+  if (it) openItem(it);
+  else if (nearPoster(8)) startWarp();
+}
+// item shit
+function clickWorld(p) {
+  if (dlg) { act(); return true; }
+  const x = p.x / SCALE + cam(), y = p.y / SCALE + camY();
+  const it = liveItems().find(i => x >= i.x && x <= i.x + IS && y >= i.y && y <= i.y + IS);
+  if (it && reachable(it)) { openItem(it); return true; }
+  const po = posters().find(o => { const T = OBJ_TYPES[o.t]; return x >= o.x && x <= o.x + T.w && y >= o.y && y <= o.y + T.h; });
+  if (po && touchPoster(po, 8)) { startWarp(); return true; }
+  return false;
+}
+
+// =====================
+// bullet patterns 
+// =====================
+// rnd tussen a en b
+const rnd = (a, b) => a + Math.random() * (b - a);
+const orb = (x, y, vx, vy, r = 7) => bt.bul.push({ k: 0, x, y, vx: vx * bt.T.spd, vy: vy * bt.T.spd, r });
+const rect = (x, y, w, h, vx, vy) => bt.bul.push({ k: 1, x, y, w, h, vx: vx * bt.T.spd, vy: vy * bt.T.spd });
+const beam = (x, y, w, h) => bt.bul.push({ k: 2, x, y, w, h, age: bt.T.skip }); // skip = kortere waarschuwing
+const hcx = () => bt.hx + HS / 2, hcy = () => bt.hy + HS / 2;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const PAT = [
+  // 1 kogel regen
+  { n: "Rain", f: t => { if (t % 6 === 0) orb(rnd(10, ZW - 10), -10, 0, 3 + rnd(0, 1.5) + t / 360); } },
+  // 2 ventilator
+  { n: "Fan", f: t => {
+    if (t % 4 === 0) { const a = Math.PI / 2 + Math.sin(t * .045) * 1.15; orb(ZW / 2, 0, Math.cos(a) * 3, Math.sin(a) * 3, 6); }
+    if (t > 300 && t % 8 === 0) { const a = -Math.PI / 2 + Math.sin(t * .05) * 1.1; orb(ZW / 2, ZH, Math.cos(a) * 3, Math.sin(a) * 3, 6); }
+  } },
+  // 3 flappy bird
+  { n: "Bones", f: t => {
+    if (t % 72 === 20) {
+      const L = (t / 72 | 0) % 2 === 0, gap = 100, gy = rnd(30, ZH - gap - 30), v = (L ? 1 : -1) * (3.2 + t / 360), x = L ? -16 : ZW;
+      rect(x, 0, 16, gy, v, 0); rect(x, gy + gap, 16, ZH - gy - gap, v, 0);
+    }
+  } },
+  // 4 jevil
+  { n: "Aimed", f: t => {
+    if (t % 38 === 0) {
+      const s = Math.random() * 4 | 0, sx = s === 0 ? 0 : s === 1 ? ZW : rnd(0, ZW), sy = s === 2 ? 0 : s === 3 ? ZH : rnd(0, ZH);
+      const a = Math.atan2(hcy() - sy, hcx() - sx);
+      for (const d of [-.22, 0, .22]) orb(sx, sy, Math.cos(a + d) * 3.4, Math.sin(a + d) * 3.4, 7);
+    }
+  } },
+  // 5 asriel thunder
+  { n: "Rude Buster", f: t => {
+    if (t % 105 === 15) {
+      const h = Math.random() < .5, p = (h ? hcy() : hcx()) - 18 + rnd(-30, 30);
+      if (h) beam(0, clamp(p, 0, ZH - 36), ZW, 36); else beam(clamp(p, 0, ZW - 36), 0, 36, ZH);
+    }
+  } },
+  // 6 links rechts ziel beweeg
+  { n: "Curtain", f: t => {
+    if (t % 52 === 0) {
+      const cols = Math.floor(ZW / 28), x0 = (ZW - cols * 28) / 2 + 14;
+      bt.g = clamp((bt.g ?? 5) + Math.round(rnd(-4, 4)), 0, cols - 4);
+      for (let i = 0; i < cols; i++) if (i < bt.g || i >= bt.g + 4) orb(x0 + i * 28, -10, 0, 2.6, 8);
+    }
+  } },
+  // 7 jevil deel 2
+  { n: "Burst", f: t => {
+    if (t % 58 === 0) {
+      const x = rnd(80, ZW - 80), y = rnd(40, 160), o = Math.random() * 6.28;
+      for (let i = 0; i < 16; i++) { const a = o + i * Math.PI / 8; orb(x, y, Math.cos(a) * 2.2, Math.sin(a) * 2.2, 6); }
+    }
+  } }
+];
+
+// raakt kogel hart?
+function hit(b, cx, cy) {
+  if (b.k === 0) return Math.hypot(b.x - cx, b.y - cy) < b.r + 9;
+  if (b.k === 2 && !(b.age >= 40 && b.age < 62)) return false;
+  const nx = clamp(cx, b.x, b.x + b.w), ny = clamp(cy, b.y, b.y + b.h);
+  return Math.hypot(nx - cx, ny - cy) < 9;
+}
+
+// =====================
+// enemies in de ow (lopen heen en weer tussen 2 boxen)
+// =====================
+// zelfde mapjes als kris, maar dan /enemy/ (down_0..3, up_0..3, left_0..1, right_0..1)
+// de 4 soorten, van makkelijk naar extreem.
+// pats = welke aanvallen (0 Rain, 1 Fan, 2 Bones, 3 Aimed, 4 Rude Buster straal, 5 Curtain, 6 Burst)
+// spd = kogel snelheid, rate = hoe snel aanvallen kogels maken, dmg = schade, time = seconden gevecht
+// skip = straal waarschuwing korter (frames), switch = elke zoveel frames een nieuwe aanval (0 = nooit), combo = 2 aanvallen tegelijk
+// speed = loopsnelheid in de ow, chase = (alleen rakuichi) rent achter kris aan binnen zoveel pixels
+const ETYPES = [
+  { id: 1, name: "gemene buster",     col: "#6ee06e", speed: 0.7, chase: 0,   chaseSpeed: 0,   pats: [0, 1, 3],                spd: 0.8,  rate: 0.8,  dmg: 0.7, time: 12, skip: 0,  switch: 0,   combo: false },
+  { id: 2, name: "gemenere buster",    col: "#e2e24a", speed: 0.9, chase: 0,   chaseSpeed: 0,   pats: [0, 1, 3, 5],             spd: 1.0,  rate: 1.0,  dmg: 1.0, time: 15, skip: 0,  switch: 0,   combo: false },
+  { id: 3, name: "onbeleefde buster", col: "#f08a30", speed: 1.1, chase: 0,   chaseSpeed: 0,   pats: [0, 1, 2, 3, 4, 5],       spd: 1.2,  rate: 1.25, dmg: 1.3, time: 20, skip: 8,  switch: 420, combo: false },
+  { id: 4, name: "rakuichi en buster", col: "#e02a3a", speed: 1.2, chase: 100, chaseSpeed: 1.4, pats: [0, 1, 2, 3, 4, 5, 6],    spd: 1.45, rate: 1.5,  dmg: 1.7, time: 30, skip: 16, switch: 360, combo: true }
+];
+const etype = e => ETYPES[clamp((e.type | 0) || 1, 1, 4) - 1];
+// sprites: enemy/1/ .. enemy/4/ (down_0..3, up_0..3, left_0..1, right_0..1). ontbreekt er 1? dan de oude enemy/ map. anders een gekleurd vak
+function loadSet(dir, fb) {
+  const mk = (n, c) => Array.from({ length: c }, (_, i) => {
+    const im = new Image();
+    im.onerror = () => { im.onerror = null; im.src = fb + n + "_" + i + ".png"; };
+    im.src = dir + n + "_" + i + ".png";
+    return im;
+  });
+  return { down: mk("down", 4), left: mk("left", 2), right: mk("right", 2), up: mk("up", 4) };
+}
+const enemySets = ETYPES.map(T => loadSet("enemy/" + T.id + "/", "enemy/"));
+const eImgs = e => enemySets[etype(e).id - 1];
+// aanraak hitbox (hele lijf)
+const bodyBox = (x, y) => ({ x: x + 2, y: y + 8, w: SPR_W - 4, h: SPR_H - 8 });
+// patrouille punt i (0 of 1) van enemy e: naast een box. side -1 = links van de box, 1 = rechts
+function patrolPoint(e, i) {
+  const p = e.pts[i];
+  if (p.id === undefined) return { x: p.x, y: p.y }; // vaste plek
+  const box = ITEMS.find(b => b.id === p.id);
+  if (!box) return { x: e.x || 0, y: e.y || 0 };
+  return { x: p.side < 0 ? box.x - SPR_W - 4 : box.x + IS + 6, y: box.y - 2 };
+}
+function makeEnemy(a, b, world = 0, type = 1, mus = 0) {
+  const e = { pts: [a, b], world, type: clamp((type | 0) || 1, 1, 4), mus: clamp(mus | 0, 0, 5), x: 0, y: 0, chasing: false, dir: "down", frame: 0, timer: 0, moving: true, wait: 0, to: 1, cool: 0, alive: true };
+  Object.assign(e, patrolPoint(e, 0));
+  return e;
+}
+// enemy 1: tussen up en left box. enemy 2: aan de overkant, tussen de onderkant en de right box
+const defaultEnemies = () => [
+  makeEnemy({ id: "up", side: -1 }, { id: "left", side: 1 }),
+  makeEnemy({ x: 168, y: 162 }, { id: "right", side: -1 }, 0, 2) // onderin (waar de oranje box stond) <-> right box
+];
+const enemies = defaultEnemies();
+const liveEnemies = () => enemies.filter(e => e.world === worldIdx);
+let fighting = null; // tegen welke enemy vecht kris (die verdwijnt na het gevecht)
+// na een gevecht: elke enemy begint bij het punt dat het verst van kris af is + even niet aanraakbaar
+function respawnEnemies() {
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    const p0 = patrolPoint(e, 0), p1 = patrolPoint(e, 1);
+    const far = Math.hypot(p0.x - player.x, p0.y - player.y) > Math.hypot(p1.x - player.x, p1.y - player.y) ? 0 : 1;
+    Object.assign(e, patrolPoint(e, far));
+    e.to = 1 - far; e.wait = 30; e.cool = 90;
+  }
+}
+function updateEnemy(e) {
+  const T = etype(e);
+  if (e.cool > 0) e.cool--;
+  // rakuichi buster: rent achter kris aan als ze dichtbij komt (blijft 40% langer achter haar aan)
+  if (T.chase && e.cool <= 0 && !dlg) {
+    const vx = player.x - e.x, vy = player.y - e.y, d = Math.hypot(vx, vy);
+    e.chasing = d < T.chase * (e.chasing ? 1.4 : 1);
+    if (e.chasing && d > 0.5) {
+      const s = Math.min(T.chaseSpeed, d), nx = e.x + vx / d * s, ny = e.y + vy / d * s;
+      if (inWorld(nx, ny)) { e.x = nx; e.y = ny; }
+      e.dir = Math.abs(vx) > Math.abs(vy) ? (vx < 0 ? "left" : "right") : (vy < 0 ? "up" : "down");
+      e.moving = true; e.wait = 0;
+      if (++e.timer >= 6) { e.frame++; e.timer = 0; }
+      e.frame %= eImgs(e)[e.dir].length;
+      return;
+    }
+  }
+  // even wachten bij een box
+  if (e.wait > 0) { e.wait--; e.moving = false; e.frame = 0; return; }
+  const t = patrolPoint(e, e.to), vx = t.x - e.x, vy = t.y - e.y, d = Math.hypot(vx, vy);
+  if (d <= T.speed) {
+    // aangekomen: wacht en loop terug naar de andere box
+    e.x = t.x; e.y = t.y; e.to = 1 - e.to; e.wait = 60; e.moving = false; e.frame = 0;
+    return;
+  }
+  e.x += vx / d * T.speed; e.y += vy / d * T.speed;
+  e.dir = Math.abs(vx) > Math.abs(vy) ? (vx < 0 ? "left" : "right") : (vy < 0 ? "up" : "down");
+  e.moving = true;
+  if (++e.timer >= 10) { e.frame++; e.timer = 0; }
+  e.frame %= eImgs(e)[e.dir].length;
+}
+
+// =====================
+// kamers, gang en de room editor
+// =====================
+const LIMIT = 2000;  // grootste coordinaat in de wereld (-2000 .. 2000)
+const WALL_H = 44;   // hoogte van de achterwand (als een kamer een achterwand heeft)
+const R = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x * SCALE), Math.round(y * SCALE), w * SCALE, h * SCALE); };
+
+// ---------- vloeren ----------
+// floor(a, y0): teken de vloer van kamer a (y0 = waar de vloer begint, onder de achterwand)
+// wall = [muurkleur, plint, streepjes]
+const STYLES = {
+  dark: { label: "dark", wall: ["#2a3250", "#1d2338", "#252d47"], floor(a) { R(a.x, a.y, a.w, a.h, "#111"); } },
+  wood: { label: "wood", wall: ["#3b4670", "#2a3250", "#344063"], floor(a, y0) {
+    R(a.x, a.y, a.w, a.h, "#7a5230");
+    const bottom = a.y + a.h;
+    for (let y = y0, r = 0; y < bottom; y += 14, r++) {
+      R(a.x, y, a.w, 1, "#5f3f24");
+      for (let x = a.x + (r % 2 ? 0 : 20); x < a.x + a.w; x += 40) R(x, y, 1, Math.min(14, bottom - y), "#5f3f24");
+    }
+  } },
+  stone: { label: "stone", wall: ["#4a4a58", "#34343f", "#42424f"], floor(a, y0) {
+    R(a.x, a.y, a.w, a.h, "#2c2c36");
+    const bottom = a.y + a.h;
+    for (let y = y0, r = 0; y < bottom; y += 20, r++) {
+      R(a.x, y, a.w, 1, "#20202a");
+      for (let x = a.x + (r % 2 ? 0 : 10); x < a.x + a.w; x += 20) R(x, y, 1, Math.min(20, bottom - y), "#20202a");
+    }
+  } },
+  carpet: { label: "carpet", wall: ["#4a3a74", "#33274f", "#43346a"], floor(a, y0) {
+    R(a.x, a.y, a.w, a.h, "#3a2a5c");
+    for (let y = y0; y < a.y + a.h; y += 8) R(a.x, y, a.w, 1, "#43326a");
+  } },
+  grass: { label: "grass", wall: ["#3a5a8a", "#2a4268", "#35527e"], floor(a) {
+    R(a.x, a.y, a.w, a.h, "#2f6b3a");
+    for (let y = a.y, j = 0; y < a.y + a.h - 2; y += 12, j++) for (let x = a.x, i = 0; x < a.x + a.w - 2; x += 12, i++) {
+      const h = (i * 7 + j * 13) % 12; R(x + h % 8, y + (h * 5) % 9, 2, 2, "#3a7d46");
+    }
+  } }
+};
+function drawArea(a) {
+  const st = STYLES[a.style] || STYLES.dark, wh = a.wall ? Math.min(WALL_H, a.h) : 0;
+  st.floor(a, a.y + wh);
+  if (wh) {
+    R(a.x, a.y, a.w, wh, st.wall[0]); R(a.x, a.y + wh - 6, a.w, 6, st.wall[1]);
+    for (let x = a.x + 10; x < a.x + a.w; x += 28) R(x, a.y, 1, wh - 6, st.wall[2]);
+  }
+}
+
+// ---------- objecten (meubels) ----------
+// w/h = grootte van het plaatje (ook de grootte van items/<naam>.png).
+// solid = het stuk waar je niet doorheen kan (relatief aan x,y). flat = ligt plat of hangt aan de muur.
+// draw = het ingebouwde plaatje, als items/<naam>.png niet bestaat. (draw mag ook weg: dan zie je een grijs vak)
+const OBJ_TYPES = {
+  bed: { label: "bed", w: 76, h: 62, solid: { x: 0, y: 0, w: 76, h: 62 }, draw(x, y) {
+    R(x, y, 76, 62, "#3b2a1c"); R(x + 2, y + 2, 72, 58, "#e8e8f0");
+    R(x + 6, y + 6, 28, 14, "#fff"); R(x + 6, y + 6, 28, 1, "#cfd2e0");
+    R(x + 2, y + 22, 72, 38, "#5b78c9"); R(x + 2, y + 22, 72, 3, "#7d97e0"); R(x + 2, y + 56, 72, 4, "#46609f");
+  } },
+  bookshelf: { label: "bookshelf", w: 30, h: 58, solid: { x: 0, y: 26, w: 30, h: 32 }, draw(x, y) {
+    R(x, y, 30, 58, "#5a3a22"); R(x + 2, y + 2, 26, 54, "#3e2716");
+    const cols = ["#c0392b", "#2980b9", "#27ae60", "#f1c40f", "#8e44ad"];
+    for (let r = 0; r < 4; r++) {
+      R(x + 2, y + 15 + r * 14, 26, 2, "#5a3a22");
+      for (let i = 0; i < 6; i++) R(x + 3 + i * 4, y + 4 + r * 14, 3, 11, cols[(i + r) % cols.length]);
+    }
+  } },
+  desk: { label: "desk", w: 42, h: 24, solid: { x: 0, y: 6, w: 84, h: 42 }, draw(x, y) {
+    R(x, y + 26, 84, 8, "#9a6a3c"); R(x, y + 34, 84, 14, "#7c5230");
+    R(x + 4, y + 36, 34, 10, "#5f3f24"); R(x + 46, y + 36, 34, 10, "#5f3f24");
+    R(x + 26, y, 34, 26, "#222"); R(x + 29, y + 3, 28, 18, "#4de1c4"); R(x + 40, y + 24, 6, 4, "#222");
+    R(x + 28, y + 28, 30, 4, "#cfcfcf");
+  } },
+  chair: { label: "chair", w: 20, h: 20, solid: { x: 2, y: 4, w: 16, h: 12 }, draw(x, y) {
+    R(x + 2, y, 16, 4, "#444"); R(x, y + 4, 20, 12, "#555"); R(x + 8, y + 16, 4, 4, "#333");
+  } },
+  dresser: { label: "dresser", w: 38, h: 40, solid: { x: 0, y: 0, w: 38, h: 40 }, draw(x, y) {
+    R(x, y, 38, 40, "#5a3a22"); R(x + 2, y + 2, 34, 36, "#7a4f2c");
+    R(x + 2, y + 20, 34, 1, "#4a2f1a"); R(x + 16, y + 8, 6, 2, "#e8c070"); R(x + 16, y + 28, 6, 2, "#e8c070");
+  } },
+  rug: { label: "rug", w: 110, h: 56, flat: true, draw(x, y) {
+    R(x, y, 110, 56, "#2e3a78"); R(x + 4, y + 4, 102, 48, "#3b4a9a"); R(x + 10, y + 10, 90, 36, "#2e3a78");
+  } },
+  window: { label: "window", w: 30, h: 30, flat: true, draw(x, y) {
+    R(x, y, 60, 30, "#d9d9e8"); R(x + 3, y + 3, 24, 24, "#1d2f6e"); R(x + 33, y + 3, 24, 24, "#1d2f6e");
+    R(x + 10, y + 8, 2, 2, "#fff"); R(x + 18, y + 18, 1, 1, "#fff"); R(x + 40, y + 7, 1, 1, "#fff"); R(x + 47, y + 14, 2, 2, "#ffe9a8");
+  } },
+  poster: { label: "poster", w: 128, h: 48, flat: true, draw(x, y) {
+    R(x, y, 24, 24, "#e8e8e8"); R(x + 2, y + 2, 20, 20, "#c0392b"); R(x + 7, y + 7, 10, 10, "#f1c40f");
+  } },
+  plant: { label: "plant", w: 14, h: 22, solid: { x: 2, y: 16, w: 10, h: 6 }, draw(x, y) {
+    R(x + 2, y + 14, 10, 2, "#b8643a"); R(x + 3, y + 16, 8, 6, "#a0522d");
+    R(x + 2, y + 3, 10, 11, "#2e8b3a"); R(x + 5, y, 4, 6, "#3fae4e"); R(x, y + 7, 3, 4, "#2e8b3a"); R(x + 11, y + 7, 3, 4, "#2e8b3a");
+  } },
+  lamp: { label: "lamp", w: 10, h: 26, solid: { x: 1, y: 22, w: 8, h: 4 }, draw(x, y) {
+    R(x, y, 10, 8, "#f1c40f"); R(x + 1, y + 1, 8, 3, "#ffe680"); R(x + 4, y + 8, 2, 14, "#888"); R(x + 1, y + 22, 8, 4, "#555");
+  } },
+  crate: { label: "crate", w: 27, h: 25, solid: { x: 0, y: 0, w: 20, h: 20 }, draw(x, y) {
+    R(x, y, 20, 20, "#7a5230"); R(x + 2, y + 2, 16, 16, "#a77b4a"); R(x + 2, y + 9, 16, 2, "#7a5230"); R(x + 9, y + 2, 2, 16, "#7a5230");
+  } },
+  wall: { label: "wall", w: 16, h: 16, solid: { x: 0, y: 0, w: 16, h: 16 }, draw(x, y) {
+    R(x, y, 16, 16, "#555"); R(x + 1, y + 1, 14, 14, "#777"); R(x + 1, y + 1, 14, 2, "#999");
+  } }
+  // nieuw object nodig? kopieer een regel, bijvoorbeeld:
+  // , table: { label: "Table", w: 40, h: 24, solid: { x: 0, y: 8, w: 40, h: 16 } }   (en leg items/table.png neer)
+};
+// plaatjes uit de map items/ (items/bed.png, items/desk.png, ...). bestaat het plaatje niet, dan het ingebouwde plaatje
+for (const t in OBJ_TYPES) OBJ_TYPES[t].img = load("items/" + t + ".png");
+function drawObj(o) {
+  const T = OBJ_TYPES[o.t];
+  if (T.img && T.img.complete && T.img.naturalWidth) ctx.drawImage(T.img, Math.round(o.x * SCALE), Math.round(o.y * SCALE), T.w * SCALE, T.h * SCALE);
+  else if (T.draw) T.draw(o.x, o.y);
+  else { R(o.x, o.y, T.w, T.h, "#777"); text(T.label, (o.x + T.w / 2) * SCALE, (o.y + T.h / 2) * SCALE - 8, 16, "#000", "center"); }
+}
+
+// ---------- beginopstelling + opslaan ----------
+function defaultAreas() {
+  return [
+    { x: 0,    y: 0,  w: 400, h: 200, style: "dark", wall: false },  // kamer 1
+    { x: -160, y: 90, w: 160, h: 60,  style: "dark", wall: false },  // gang
+    { x: -560, y: 0,  w: 400, h: 200, style: "wood", wall: true }    // kris zijn kamer
+  ];
+}
+function defaultObjs() {
+  const KX = -560;
+  return [
+    { t: "rug",       x: KX + 150, y: 112 },
+    { t: "window",    x: KX + 148, y: 6 },
+    { t: "poster",    x: KX + 222, y: 10 },
+    { t: "bookshelf", x: KX + 102, y: 18 },
+    { t: "bed",       x: KX + 14,  y: 44 },
+    { t: "desk",      x: KX + 258, y: 38 },
+    { t: "chair",     x: KX + 288, y: 88 },
+    { t: "dresser",   x: KX + 350, y: 44 }
+  ];
+}
+const LS_KEY = "roomEditor.v2";
+const okNum = v => Number.isFinite(v);
+// leest een layout (nieuw formaat {areas, objs, spawn, world2} of het oude formaat: alleen een lijst met objecten)
+const cleanObjs = list => list.filter(o => o && OBJ_TYPES[o.t] && okNum(o.x) && okNum(o.y)).map(o => ({ t: o.t, x: o.x, y: o.y }));
+const cleanAreas = list => list.filter(a => a && okNum(a.x) && okNum(a.y) && okNum(a.w) && okNum(a.h) && a.w >= 16 && a.h >= 16)
+  .map(a => ({ x: a.x, y: a.y, w: a.w, h: a.h, style: STYLES[a.style] ? a.style : "dark", wall: !!a.wall }));
+const cleanItems = list => { const ids = new Set(); return list.filter(o => o && typeof o.id === "string" && o.id && okNum(o.x) && okNum(o.y) && !ids.has(o.id) && ids.add(o.id))
+  .map(o => ({ id: o.id, skin: o.skin, name: typeof o.name === "string" ? o.name : "doos", x: o.x, y: o.y, world: o.world ? 1 : 0, lines: Array.isArray(o.lines) ? o.lines.map(String) : null })); };
+const cleanPt = q => q && okNum(q.x) && okNum(q.y) ? { x: q.x, y: q.y } : q && typeof q.id === "string" && (q.side === -1 || q.side === 1) ? { id: q.id, side: q.side } : null;
+const cleanEnemies = list => list.map(e => e && { a: cleanPt(e.a), b: cleanPt(e.b), world: e.world ? 1 : 0, type: clamp((e.type | 0) || 1, 1, 4), mus: clamp(e.mus | 0, 0, 5) }).filter(e => e && e.a && e.b);
+const cleanSpawn = sp => sp && okNum(sp.x) && okNum(sp.y) ? { x: sp.x, y: sp.y } : null;
+function parseLayout(str) {
+  try {
+    const d = JSON.parse(str), list = Array.isArray(d) ? d : d && d.objs;
+    if (!Array.isArray(list)) return null;
+    const out = { objs: cleanObjs(list), areas: null, spawn: null, world2: null, items: null, enemies: null };
+    if (!Array.isArray(d)) {
+      if (Array.isArray(d.areas)) { const ar = cleanAreas(d.areas); if (ar.length) out.areas = ar; }
+      out.spawn = cleanSpawn(d.spawn);
+      if (Array.isArray(d.items)) out.items = cleanItems(d.items);
+      if (Array.isArray(d.enemies)) out.enemies = cleanEnemies(d.enemies);
+      const w = d.world2;
+      if (w && Array.isArray(w.objs) && Array.isArray(w.areas)) {
+        const ar = cleanAreas(w.areas);
+        if (ar.length) out.world2 = { objs: cleanObjs(w.objs), areas: ar, spawn: cleanSpawn(w.spawn) || { x: ar[0].x + ar[0].w / 2 - SPR_W / 2, y: ar[0].y + ar[0].h / 2 - SPR_H / 2 } };
+      }
+    }
+    return out;
+  } catch (e) { return null; }
+}
+// wereld 1 staat altijd eerst in de opslag, ook als je net in wereld 2 bent
+function layoutJSON() {
+  const cur = { areas, objs, spawn }, w = worldIdx === 0 ? [cur, other] : [other, cur];
+  return JSON.stringify({ v: 2, areas: w[0].areas, objs: w[0].objs, spawn: w[0].spawn, world2: w[1],
+    items: ITEMS.map(it => { const o = { id: it.id, skin: it.skin, name: it.name, x: it.x, y: it.y, world: it.world }; if (it.lines) o.lines = it.lines; return o; }),
+    enemies: enemies.map(e => ({ a: { ...e.pts[0] }, b: { ...e.pts[1] }, world: e.world, type: e.type, mus: e.mus })) });
+}
+function applyLayout(L) { toMainWorld(); objs = L.objs; if (L.areas) areas = L.areas; if (L.spawn) spawn = L.spawn; if (L.world2) other = L.world2;
+  if (L.items) ITEMS.splice(0, ITEMS.length, ...L.items.map(makeItem));
+  if (L.enemies) enemies.splice(0, enemies.length, ...L.enemies.map(e => makeEnemy(e.a, e.b, e.world, e.type, e.mus)));
+  dropBrokenEnemies();
+}
+// de wereld waar je NIET in zit
+function defaultWorld2() {
+  return {
+    areas: [{ x: 0, y: 0, w: 400, h: 200, style: "grass", wall: true }],
+    objs: [
+      { t: "window", x: 40,  y: 6 },
+      { t: "window", x: 310, y: 6 },
+      { t: "poster", x: 136, y: 10 },
+      { t: "plant",  x: 24,  y: 70 },
+      { t: "plant",  x: 362, y: 70 },
+      { t: "lamp",   x: 90,  y: 100 },
+      { t: "crate",  x: 300, y: 120 }
+    ],
+    spawn: { x: 192, y: 100 }
+  };
+}
+// wissel de data van de huidige wereld met de andere (de editor en de poster gebruiken dit)
+function swapData() {
+  const cur = { areas, objs, spawn };
+  areas = other.areas; objs = other.objs; spawn = other.spawn; other = cur; worldIdx = 1 - worldIdx;
+}
+function toMainWorld() { if (worldIdx) swapData(); }
+function loadLayout() {
+  try { const s = localStorage.getItem(LS_KEY) || localStorage.getItem("roomEditor.v1"); return s ? parseLayout(s) : null; } catch (e) { return null; }
+}
+function saveLayout() { try { localStorage.setItem(LS_KEY, layoutJSON()); } catch (e) {} }
+let areas = defaultAreas(), objs = defaultObjs(), spawn = { x: BASE_W / 2 - SPR_W / 2, y: BASE_H / 2 - SPR_H / 2 };
+let other = defaultWorld2();
+{ const L = loadLayout(); if (L) applyLayout(L); }
+
+
+// ---------- poster = deur naar de andere wereld ----------
+// de poster aanraken wisselt tussen wereld 1 en wereld 2. elke wereld heeft zijn eigen kamers + meubels (+ een poster om terug te gaan)
+const posters = () => objs.filter(o => o.t === "poster");
+function touchPoster(o, m = 2, x = player.x, y = player.y) {
+  const T = OBJ_TYPES[o.t];
+  return overlap(feetBox(x, y), { x: o.x, y: o.y, w: T.w, h: T.h }, m);
+}
+const nearPoster = m => posters().find(o => touchPoster(o, m));
+function startWarp() { warp = { t: 0 }; player.moving = false; player.frame = 0; ptr = null; dlg = null; }
+// zet kris net onder de poster van de wereld waar ze net in komt (niet er op, anders spring je meteen terug)
+function landByPoster() {
+  const p = posters()[0];
+  if (p) {
+    const T = OBJ_TYPES[p.t], bx = p.x + T.w / 2 - SPR_W / 2, by = p.y + T.h - 14;
+    for (let r = 0; r < 300; r += 2) for (let a = 0; a < 16; a++) {
+      const x = bx + Math.cos(a * Math.PI / 8) * r, y = by + Math.sin(a * Math.PI / 8) * r;
+      if (!blocked(x, y) && inWorld(x, y) && !posters().some(q => touchPoster(q, 3, x, y))) { player.x = x; player.y = y; return; }
+    }
+  }
+  player.x = spawn.x; player.y = spawn.y; unstick();
+}
+// fade uit (18 frames) -> wissel van wereld -> fade in (18 frames)
+function stepWarp() {
+  warp.t++;
+  if (warp.t === 18) { swapData(); landByPoster(); player.dir = "down"; player.frame = 0; posterLock = true; }
+  if (warp.t >= 36) warp = null;
+}
+
+// ---------- de wereld: grenzen, camera, botsen ----------
+function worldBounds() {
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const a of areas) { minX = Math.min(minX, a.x); maxX = Math.max(maxX, a.x + a.w); minY = Math.min(minY, a.y); maxY = Math.max(maxY, a.y + a.h); }
+  return { minX, maxX, minY, maxY };
+}
+const inArea = (px, py) => areas.some(a => px >= a.x && px <= a.x + a.w && py >= a.y && py <= a.y + a.h);
+// alle hoeken van kris moeten in een kamer of de gang zitten
+function inWorld(x, y) {
+  const r = x + SPR_W, b = y + SPR_H;
+  return inArea(x, y) && inArea(r, y) && inArea(x, b) && inArea(r, b);
+}
+// beweeg kris in kleine stapjes zodat ze precies tegen de muur stopt
+function moveAxis(axis, amt) {
+  const n = Math.ceil(Math.abs(amt) / 0.5);
+  for (let i = 0; i < n; i++) {
+    const nx = axis === "x" ? player.x + amt / n : player.x, ny = axis === "y" ? player.y + amt / n : player.y;
+    if (blocked(nx, ny) || !inWorld(nx, ny)) break;
+    player.x = nx; player.y = ny;
+  }
+}
+// camera: volgt kris, maar blijft binnen de wereld (is de wereld kleiner dan het scherm, dan in het midden)
+const camClamp = (v, lo, hi) => hi < lo ? (lo + hi) / 2 : clamp(v, lo, hi);
+function cam() { if (mode === "edit") return editCamX; const w = worldBounds(); return camClamp(player.x + SPR_W / 2 - BASE_W / 2, w.minX, w.maxX - BASE_W); }
+function camY() { if (mode === "edit") return editCamY; const w = worldBounds(); return camClamp(player.y + SPR_H / 2 - BASE_H / 2, w.minY, w.maxY - BASE_H); }
+// alle plekken waar kris niet door kan: achterwanden + de solid delen van objecten
+function solidRects() {
+  const out = [];
+  for (const a of areas) if (a.wall) out.push({ x: a.x, y: a.y, w: a.w, h: Math.min(WALL_H, a.h) });
+  for (const o of objs) { const S = OBJ_TYPES[o.t].solid; if (S) out.push({ x: o.x + S.x, y: o.y + S.y, w: S.w, h: S.h }); }
+  return out;
+}
+const objBase = o => { const T = OBJ_TYPES[o.t]; return o.y + (T.solid ? T.solid.y + T.solid.h : T.h); };
+// tekenvolgorde: eerst de platte dingen, dan de rest van boven naar onder
+function objOrder() {
+  const flat = objs.filter(o => OBJ_TYPES[o.t].flat);
+  const rest = objs.filter(o => !OBJ_TYPES[o.t].flat).sort((p, q) => objBase(p) - objBase(q));
+  return flat.concat(rest);
+}
+
+// ---------- room editor ----------
+// M of de EDIT knop = aan/uit. tab Objects = meubels, tab Rooms = kamers en gangen.
+const snapSizes = [1, 2, 4, 8];
+let lastEditP = null, editTab = "objects", sel = null, selA = null, drag = null, editCamX = 0, editCamY = 0, snapI = 1, editMsg = "", editMsgT = 0;
+const snapV = v => Math.round(v / snapSizes[snapI]) * snapSizes[snapI];
+const EDGE = 8; // zo dicht bij de rand van een kamer pak je de rand (om te vergroten)
+function say(m) { editMsg = m; editMsgT = 150; }
+function clampEditCam() {
+  const w = worldBounds();
+  editCamX = clamp(editCamX, w.minX - 300, w.maxX - 100); editCamY = clamp(editCamY, w.minY - 150, w.maxY - 50);
+}
+// grootte en plek van alles wat je in de editor kan pakken: meubel (t), doos (skin) of een enemy-punt
+const sizeOf = o => o.t ? OBJ_TYPES[o.t] : o.skin ? { w: IS, h: IS } : { w: SPR_W, h: SPR_H };
+const posOf = o => o.pts ? patrolPoint(o, 0) : o;
+function setPos(o, x, y) {
+  if (o.pts) o.pts[0] = { x: clamp(x, -LIMIT, LIMIT - SPR_W), y: clamp(y, -LIMIT, LIMIT - SPR_H) };
+  else { o.x = x; o.y = y; clampObj(o); }
+}
+// alles in de huidige wereld dat met een kamer mee verhuist (meubels, dozen, vaste enemy-punten)
+function carriables() {
+  const out = [...objs, ...liveItems()];
+  for (const e of liveEnemies()) for (const q of e.pts) if (q.id === undefined) out.push(q);
+  return out;
+}
+function clampObj(o) { const T = sizeOf(o); o.x = clamp(o.x, -LIMIT, LIMIT - T.w); o.y = clamp(o.y, -LIMIT, LIMIT - T.h); }
+function clampArea(a) {
+  a.w = clamp(a.w, 32, 1200); a.h = clamp(a.h, 32, 1200);
+  a.x = clamp(a.x, -LIMIT, LIMIT - a.w); a.y = clamp(a.y, -LIMIT, LIMIT - a.h);
+}
+function centerIn(o, a) {
+  const T = sizeOf(o), cx = o.x + T.w / 2, cy = o.y + T.h / 2;
+  return cx >= a.x && cx <= a.x + a.w && cy >= a.y && cy <= a.y + a.h;
+}
+function hitObj(wx, wy) {
+  const list = objOrder();
+  for (let i = list.length - 1; i >= 0; i--) {
+    const o = list[i], T = OBJ_TYPES[o.t];
+    if (wx >= o.x && wx <= o.x + T.w && wy >= o.y && wy <= o.y + T.h) return o;
+  }
+  return null;
+}
+// wat zit er onder de muis? eerst enemies, dan dozen, dan meubels
+function hitThing(wx, wy) {
+  for (const e of liveEnemies()) { const q = patrolPoint(e, 0); if (wx >= q.x && wx <= q.x + SPR_W && wy >= q.y && wy <= q.y + SPR_H) return e; }
+  for (const it of liveItems()) if (wx >= it.x && wx <= it.x + IS && wy >= it.y && wy <= it.y + IS) return it;
+  return hitObj(wx, wy);
+}
+function hitArea(wx, wy) {
+  for (let i = areas.length - 1; i >= 0; i--) { const a = areas[i]; if (wx >= a.x && wx <= a.x + a.w && wy >= a.y && wy <= a.y + a.h) return a; }
+  return null;
+}
+// pak je een rand van de geselecteerde kamer? (geeft welke randen terug)
+function edgeFlags(a, wx, wy) {
+  if (wx < a.x - EDGE || wx > a.x + a.w + EDGE || wy < a.y - EDGE || wy > a.y + a.h + EDGE) return null;
+  const f = { l: Math.abs(wx - a.x) <= EDGE, r: Math.abs(wx - (a.x + a.w)) <= EDGE, t: Math.abs(wy - a.y) <= EDGE, b: Math.abs(wy - (a.y + a.h)) <= EDGE };
+  return (f.l || f.r || f.t || f.b) ? f : null;
+}
+// -- objecten
+function addObj(t) {
+  const T = OBJ_TYPES[t], o = { t, x: snapV(editCamX + BASE_W / 2 - T.w / 2), y: snapV(editCamY + BASE_H / 2 - T.h / 2) };
+  clampObj(o); objs.push(o); sel = o; saveLayout();
+}
+function newItemId() { let n = ITEMS.length + 1; while (ITEMS.some(i => i.id === "box" + n)) n++; return "box" + n; }
+function addItem() {
+  const it = makeItem({ id: newItemId(), skin: sel && sel.skin ? sel.skin : "up", name: "doos", x: snapV(editCamX + BASE_W / 2 - IS / 2), y: snapV(editCamY + BASE_H / 2 - IS / 2), world: worldIdx });
+  clampObj(it); ITEMS.push(it); sel = it; saveLayout();
+}
+function addEnemy(type = 1) {
+  const x = snapV(editCamX + BASE_W / 2 - SPR_W / 2), y = snapV(editCamY + BASE_H / 2 - SPR_H / 2);
+  const e = makeEnemy({ x, y }, { x: x + 60, y }, worldIdx, type);
+  enemies.push(e); sel = e; saveLayout();
+}
+// doos weghalen: enemies die eraan vastzaten blijven op de plek waar ze liepen
+function removeItem(it) {
+  for (const e of enemies) e.pts.forEach((q, i) => { if (q.id === it.id) { const r = patrolPoint(e, i); e.pts[i] = { x: r.x, y: r.y }; } });
+  ITEMS.splice(ITEMS.indexOf(it), 1);
+}
+function dropBrokenEnemies() {
+  for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].pts.some(q => q.id !== undefined && !ITEMS.some(b => b.id === q.id))) enemies.splice(i, 1);
+}
+// na de editor: alle enemies weer levend en terug op hun beginpunt
+function reviveEnemies() {
+  for (const e of enemies) { e.alive = true; Object.assign(e, patrolPoint(e, 0)); e.to = 1; e.wait = 0; e.cool = 90; }
+}
+function delSel() {
+  if (!sel) return say("kies iets eerst");
+  if (sel.pts) enemies.splice(enemies.indexOf(sel), 1);
+  else if (sel.skin) removeItem(sel);
+  else objs = objs.filter(o => o !== sel);
+  sel = null; saveLayout();
+}
+function cloneSel() {
+  if (!sel) return say("kies iets eerst");
+  let c;
+  if (sel.pts) { const a = patrolPoint(sel, 0), b = patrolPoint(sel, 1); c = makeEnemy({ x: a.x + 8, y: a.y + 8 }, { x: b.x + 8, y: b.y + 8 }, sel.world, sel.type, sel.mus); enemies.push(c); }
+  else if (sel.skin) { c = makeItem({ ...sel, id: newItemId(), x: sel.x + 8, y: sel.y + 8, lines: sel.lines && sel.lines.slice() }); clampObj(c); ITEMS.push(c); }
+  else { c = { t: sel.t, x: sel.x + 8, y: sel.y + 8 }; clampObj(c); objs.push(c); }
+  sel = c; saveLayout();
+}
+function boxLook() {
+  if (!sel || !sel.skin) return say("kies een doos");
+  sel.skin = SKIN_IDS[(SKIN_IDS.indexOf(sel.skin) + 1) % SKIN_IDS.length]; sel.img = skinImg(sel.skin); sel.col = skinCol(sel.skin); saveLayout();
+}
+function boxText() {
+  if (!sel || !sel.skin) return say("kies een doos");
+  const t = prompt("What does this box say? (separate lines with | )", (sel.lines || DIALOOG[sel.id] || []).join(" | "));
+  if (t === null) return;
+  const L = t.split("|").map(x => x.trim()).filter(Boolean).map(x => x.startsWith("*") ? x : "* " + x);
+  sel.lines = L.length ? L : null; saveLayout(); say("box text saved");
+}
+// enemy soort wisselen (1 Rude .. 4 Rakuichi) en enemy muziek (auto of 1..5)
+const musLabel = e => e.mus ? e.mus + " " + TRACK_NAMES[e.mus - 1] : "auto (" + e.type + " " + TRACK_NAMES[e.type - 1] + ")";
+function enemyKind() {
+  if (!sel || !sel.pts) return say("kies een enemy");
+  sel.type = sel.type % 4 + 1; saveLayout(); say("soort: " + etype(sel).name);
+}
+function enemyMus() {
+  if (!sel || !sel.pts) return say("kies een enemy");
+  sel.mus = (sel.mus + 1) % 6; saveLayout(); say("muziek: " + musLabel(sel));
+}
+// -- kamers
+function addArea(kind) {
+  const hall = kind === "hall", w = hall ? 120 : 160, h = hall ? 40 : 120;
+  const a = { x: snapV(editCamX + BASE_W / 2 - w / 2), y: snapV(editCamY + BASE_H / 2 - h / 2), w, h, style: hall ? "dark" : "wood", wall: !hall };
+  clampArea(a); areas.push(a); selA = a; saveLayout();
+}
+function moveAreaBy(a, dx, dy) {
+  const carried = carriables().filter(o => centerIn(o, a)), ox = a.x, oy = a.y;
+  a.x += dx; a.y += dy; clampArea(a);
+  for (const o of carried) { o.x += a.x - ox; o.y += a.y - oy; clampObj(o); }
+}
+function delArea() {
+  if (!selA) return say("kies eerst een kamer");
+  if (areas.length < 2) return say("je kan niet alles verwijderen gast");
+  const gone = selA; areas = areas.filter(a => a !== gone);
+  const only = o => centerIn(o, gone) && !areas.some(a => centerIn(o, a));
+  objs = objs.filter(o => !only(o)); // meubels in die kamer gaan mee weg
+  for (const it of liveItems()) if (only(it)) removeItem(it);
+  for (const e of liveEnemies()) if (only(patrolPoint(e, 0))) enemies.splice(enemies.indexOf(e), 1);
+  selA = null; saveLayout();
+}
+function cloneArea() {
+  if (!selA) return say("kies eerst een kamer");
+  const src = selA, c = { x: src.x + 24, y: src.y + 24, w: src.w, h: src.h, style: src.style, wall: src.wall };
+  clampArea(c);
+  for (const o of objs.filter(o => centerIn(o, src))) { const n = { t: o.t, x: o.x + c.x - src.x, y: o.y + c.y - src.y }; clampObj(n); objs.push(n); }
+  areas.push(c); selA = c; saveLayout();
+}
+function nextFloor() {
+  if (!selA) return say("kies eerst een kamer");
+  const k = Object.keys(STYLES); selA.style = k[(k.indexOf(selA.style) + 1) % k.length]; saveLayout();
+}
+function toggleWall() { if (!selA) return say("kies eerst een kamer"); selA.wall = !selA.wall; saveLayout(); }
+function setSpawn() {
+  const cx = selA ? selA.x + selA.w / 2 : editCamX + BASE_W / 2, cy = selA ? selA.y + selA.h / 2 : editCamY + BASE_H / 2;
+  spawn = { x: snapV(cx - SPR_W / 2), y: snapV(cy - SPR_H / 2) }; saveLayout(); say("startpos set");
+}
+// -- opslaan / delen
+async function copyLayout() {
+  const j = layoutJSON();
+  try { await navigator.clipboard.writeText(j); say("layout copied to clipboard"); } catch (e) { prompt("Copy this layout:", j); }
+}
+function pasteLayout() {
+  const str = prompt("Paste a layout (JSON):");
+  if (!str) return;
+  const L = parseLayout(str);
+  if (L) { applyLayout(L); sel = selA = null; saveLayout(); say("layout loaded"); } else alert("That is not a valid layout.");
+}
+function resetLayout() {
+  if (!confirm("Reset everything (rooms + furniture) to the default?")) return;
+  worldIdx = 0; other = defaultWorld2();
+  ITEMS.splice(0, ITEMS.length, ...defaultItems()); enemies.splice(0, enemies.length, ...defaultEnemies()); seen.clear(); seen.done = false;
+  areas = defaultAreas(); objs = defaultObjs(); spawn = { x: BASE_W / 2 - SPR_W / 2, y: BASE_H / 2 - SPR_H / 2 }; sel = selA = null; saveLayout(); say("reset");
+}
+// staat kris vast of buiten de kamers? zet haar op de dichtstbijzijnde vrije plek (anders op de startplek)
+function unstick() {
+  if (!blocked(player.x, player.y) && inWorld(player.x, player.y)) return;
+  for (let r = 2; r < 300; r += 2) for (let a = 0; a < 16; a++) {
+    const x = player.x + Math.cos(a * Math.PI / 8) * r, y = player.y + Math.sin(a * Math.PI / 8) * r;
+    if (!blocked(x, y) && inWorld(x, y)) { player.x = x; player.y = y; return; }
+  }
+  player.x = spawn.x; player.y = spawn.y;
+}
+function setTab(t) {
+  editTab = t; sel = null; selA = null; drag = null;
+  rowObjects.style.display = t === "objects" ? "" : "none"; rowRooms.style.display = t === "rooms" ? "" : "none";
+  tabBtns.objects.classList.toggle("on", t === "objects"); tabBtns.rooms.classList.toggle("on", t === "rooms");
+}
+function toggleEdit() {
+  if (mode === "world" && !dlg && !warp) {
+    refreshWorldBtn();
+    editCamX = cam(); editCamY = camY(); mode = "edit"; sel = selA = null; drag = null; ptr = null;
+    document.body.classList.add("editing");
+  } else if (mode === "edit") {
+    mode = "world"; sel = selA = null; drag = null;
+    document.body.classList.remove("editing");
+    unstick(); reviveEnemies(); saveLayout();
+  }
+}
+function editKey(k) {
+  const st = snapSizes[snapI];
+  if (k === "escape") toggleEdit();
+  else if (k === "delete" || k === "backspace") { if (editTab === "objects") delSel(); else delArea(); }
+  else if (k === "c") { if (editTab === "objects") cloneSel(); else cloneArea(); }
+  else if (k.startsWith("arrow")) {
+    const dx = k === "arrowleft" ? -st : k === "arrowright" ? st : 0, dy = k === "arrowup" ? -st : k === "arrowdown" ? st : 0;
+    if (editTab === "objects" && sel) { const q = posOf(sel); setPos(sel, q.x + dx, q.y + dy); saveLayout(); }
+    else if (editTab === "rooms" && selA) { moveAreaBy(selA, dx, dy); saveLayout(); }
+  }
+}
+// -- muis / vinger
+function editDown(e, p) {
+  const wx = p.x / SCALE + editCamX, wy = p.y / SCALE + editCamY;
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+  if (editTab === "objects") {
+    if (sel && sel.pts) { // het roze spook = waar de enemy naartoe loopt
+      const q = patrolPoint(sel, 1);
+      if (wx >= q.x && wx <= q.x + SPR_W && wy >= q.y && wy <= q.y + SPR_H) { drag = { kind: "pt", dx: wx - q.x, dy: wy - q.y, moved: false }; return; }
+    }
+    const o = hitThing(wx, wy);
+    if (o) { const q = posOf(o); sel = o; drag = { kind: "obj", dx: wx - q.x, dy: wy - q.y, moved: false }; return; }
+    sel = null;
+  } else {
+    if (selA) {
+      const f = edgeFlags(selA, wx, wy);
+      if (f) { drag = { kind: "resize", f, r0: { x: selA.x, y: selA.y, w: selA.w, h: selA.h }, moved: false }; return; }
+    }
+    const a = hitArea(wx, wy);
+    if (a) {
+      selA = a;
+      drag = { kind: "amove", dx: wx - a.x, dy: wy - a.y, x0: a.x, y0: a.y, carried: carriables().filter(o => centerIn(o, a)).map(o => ({ o, x: o.x, y: o.y })), moved: false };
+      return;
+    }
+    selA = null;
+  }
+  drag = { kind: "pan", sx: p.x, sy: p.y, cx0: editCamX, cy0: editCamY };
+}
+function editMove(p) {
+  lastEditP = p;
+  if (!drag) return;
+  const wx = p.x / SCALE + editCamX, wy = p.y / SCALE + editCamY;
+  if (drag.kind === "pt" && sel && sel.pts) {
+    sel.pts[1] = { x: clamp(snapV(wx - drag.dx), -LIMIT, LIMIT - SPR_W), y: clamp(snapV(wy - drag.dy), -LIMIT, LIMIT - SPR_H) }; drag.moved = true;
+  } else if (drag.kind === "obj" && sel) {
+    setPos(sel, snapV(wx - drag.dx), snapV(wy - drag.dy)); drag.moved = true;
+  } else if (drag.kind === "amove" && selA) {
+    selA.x = snapV(wx - drag.dx); selA.y = snapV(wy - drag.dy); clampArea(selA);
+    for (const c of drag.carried) { c.o.x = c.x + selA.x - drag.x0; c.o.y = c.y + selA.y - drag.y0; clampObj(c.o); }
+    drag.moved = true;
+  } else if (drag.kind === "resize" && selA) {
+    const f = drag.f, r0 = drag.r0;
+    let x1 = r0.x, x2 = r0.x + r0.w, y1 = r0.y, y2 = r0.y + r0.h;
+    if (f.l) x1 = snapV(wx); if (f.r) x2 = snapV(wx); if (f.t) y1 = snapV(wy); if (f.b) y2 = snapV(wy);
+    if (x2 - x1 < 32) { if (f.l) x1 = x2 - 32; else x2 = x1 + 32; }
+    if (y2 - y1 < 32) { if (f.t) y1 = y2 - 32; else y2 = y1 + 32; }
+    selA.x = x1; selA.y = y1; selA.w = x2 - x1; selA.h = y2 - y1; clampArea(selA); drag.moved = true;
+  } else if (drag.kind === "pan") {
+    editCamX = drag.cx0 - (p.x - drag.sx) / SCALE; editCamY = drag.cy0 - (p.y - drag.sy) / SCALE; clampEditCam();
+  }
+}
+function editUp() { if (drag && drag.moved) saveLayout(); drag = null; }
+function updateEdit() {
+  if (editMsgT > 0) editMsgT--;
+  for (const e of enemies) Object.assign(e, patrolPoint(e, 0)); // in de editor staan enemies stil op hun beginpunt
+  // sleep je iets naar de rand van het scherm, dan scrolt de camera mee
+  if (drag && drag.kind !== "pan" && lastEditP) {
+    const m = 40, p = lastEditP;
+    const sx = p.x < m ? -4 : p.x > canvas.width - m ? 4 : 0, sy = p.y < m ? -4 : p.y > canvas.height - m ? 4 : 0;
+    if (sx || sy) { editCamX += sx; editCamY += sy; clampEditCam(); editMove(p); }
+  }
+  if (!(editTab === "objects" ? sel : selA) && !drag) {
+    if (K("arrowleft")) editCamX -= 3; if (K("arrowright")) editCamX += 3;
+    if (K("arrowup")) editCamY -= 3; if (K("arrowdown")) editCamY += 3;
+    clampEditCam();
+  }
+}
+// -- tekenen: raster, botsingen (rood), kamers (blauw), selectie (geel), startplek (turquoise)
+function drawEditOverlay() {
+  ctx.fillStyle = "rgba(255,255,255,.07)";
+  for (let x = Math.floor(editCamX / 16) * 16; x <= editCamX + BASE_W; x += 16) ctx.fillRect(x * SCALE, editCamY * SCALE, 1, canvas.height);
+  for (let y = Math.floor(editCamY / 16) * 16; y <= editCamY + BASE_H; y += 16) ctx.fillRect(editCamX * SCALE, y * SCALE, canvas.width, 1);
+  if (editTab === "objects") {
+    ctx.fillStyle = "rgba(255,40,40,.28)";
+    for (const r of solidRects()) ctx.fillRect(r.x * SCALE, r.y * SCALE, r.w * SCALE, r.h * SCALE);
+    for (const it of liveItems()) ctx.fillRect(it.x * SCALE, it.y * SCALE, IS * SCALE, IS * SCALE);
+    for (const e of liveEnemies()) { // patrouille: lijn + roze spook op het eindpunt
+      const a = patrolPoint(e, 0), b = patrolPoint(e, 1);
+      ctx.strokeStyle = e === sel ? "#ff0" : "rgba(255,80,255,.9)"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo((a.x + SPR_W / 2) * SCALE, (a.y + SPR_H / 2) * SCALE); ctx.lineTo((b.x + SPR_W / 2) * SCALE, (b.y + SPR_H / 2) * SCALE); ctx.stroke();
+      ctx.fillStyle = "rgba(255,80,255,.25)"; ctx.fillRect(b.x * SCALE, b.y * SCALE, SPR_W * SCALE, SPR_H * SCALE);
+      ctx.strokeRect(b.x * SCALE, b.y * SCALE, SPR_W * SCALE, SPR_H * SCALE);
+      text("end", (b.x + SPR_W / 2) * SCALE, b.y * SCALE - 18, 14, "#f8f", "center");
+      text(etype(e).name, (a.x + SPR_W / 2) * SCALE, a.y * SCALE - 18, 14, etype(e).col, "center");
+    }
+    if (sel) {
+      const T = sizeOf(sel), q = posOf(sel);
+      ctx.strokeStyle = "#ff0"; ctx.lineWidth = 3;
+      ctx.strokeRect(q.x * SCALE - 2, q.y * SCALE - 2, T.w * SCALE + 4, T.h * SCALE + 4);
+    }
+  } else {
+    ctx.lineWidth = 2; ctx.strokeStyle = "rgba(80,200,255,.8)";
+    for (const a of areas) ctx.strokeRect(a.x * SCALE, a.y * SCALE, a.w * SCALE, a.h * SCALE);
+    if (selA) {
+      const a = selA, x = a.x * SCALE, y = a.y * SCALE, w = a.w * SCALE, h = a.h * SCALE;
+      ctx.fillStyle = "rgba(255,255,0,.10)"; ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = "#ff0"; ctx.lineWidth = 3; ctx.strokeRect(x, y, w, h);
+      ctx.fillStyle = "#ff0";
+      for (const hx of [x, x + w / 2, x + w]) for (const hy of [y, y + h / 2, y + h]) if (hx !== x + w / 2 || hy !== y + h / 2) ctx.fillRect(hx - 7, hy - 7, 14, 14);
+    }
+  }
+  const sx = spawn.x * SCALE, sy = spawn.y * SCALE;
+  ctx.fillStyle = "rgba(0,255,255,.25)"; ctx.fillRect(sx, sy, SPR_W * SCALE, SPR_H * SCALE);
+  ctx.strokeStyle = "#0ff"; ctx.lineWidth = 2; ctx.strokeRect(sx, sy, SPR_W * SCALE, SPR_H * SCALE);
+  text("start", sx + SPR_W * SCALE / 2, sy - 18, 14, "#0ff", "center");
+}
+function drawEditHud() {
+  if (editTab === "objects") {
+    text("editor" + (worldIdx + 1), 12, 8, 28, "#ff0");
+    text("lol", 12, 42, 18, "#ccc");
+    if (sel) { const q = posOf(sel); text((sel.pts ? etype(sel).name + " " + sel.type + "/4  muziek " + musLabel(sel) : sel.skin ? "Box " + sel.id : OBJ_TYPES[sel.t].label) + "   x " + q.x + "   y " + q.y, 12, 66, 18, "#fff"); }
+  } else {
+    text("editor" + (worldIdx + 1), 12, 8, 28, "#ff0");
+    text("lol", 12, 42, 18, "#ccc");
+    if (selA) text(selA.w + " x " + selA.h + "   at " + selA.x + ", " + selA.y + "   floor: " + selA.style + "   back wall: " + (selA.wall ? "on" : "off"), 12, 66, 18, "#fff");
+  }
+  if (editMsgT > 0) text(editMsg, 12, 90, 18, "#7f7");
+}
+// -- de knoppen onderin
+const editorEl = document.getElementById("editor"), edBtn = document.getElementById("edBtn");
+function mkRow() { const d = document.createElement("div"); d.className = "row"; editorEl.appendChild(d); return d; }
+function ebtn(row, label, fn) {
+  const b = document.createElement("button");
+  b.type = "button"; b.textContent = label; b.onclick = () => { fn(b); b.blur(); };
+  row.appendChild(b); return b;
+}
+const rowTop = mkRow(), rowObjects = mkRow(), rowRooms = mkRow(), tabBtns = {};
+tabBtns.objects = ebtn(rowTop, "objecten edit", () => setTab("objects"));
+tabBtns.rooms = ebtn(rowTop, "kamers edit", () => setTab("rooms"));
+ebtn(rowTop, "grid: " + snapSizes[snapI], b => { snapI = (snapI + 1) % snapSizes.length; b.textContent = "Snap: " + snapSizes[snapI]; });
+const worldBtn = ebtn(rowTop, "wereld: 1", () => {
+  swapData(); sel = selA = null; drag = null; player.x = spawn.x; player.y = spawn.y;
+  const w = worldBounds(); editCamX = w.minX; editCamY = w.minY; clampEditCam(); refreshWorldBtn();
+});
+function refreshWorldBtn() { worldBtn.textContent = "wereld: " + (worldIdx + 1); }
+ebtn(rowTop, "<", () => { editCamX -= 60; clampEditCam(); }); ebtn(rowTop, ">", () => { editCamX += 60; clampEditCam(); });
+ebtn(rowTop, "^", () => { editCamY -= 40; clampEditCam(); }); ebtn(rowTop, "v", () => { editCamY += 40; clampEditCam(); });
+ebtn(rowTop, "buster menu", toggleMusic); ebtn(rowTop, "copy", copyLayout); ebtn(rowTop, "plak", pasteLayout); ebtn(rowTop, "reset", resetLayout); ebtn(rowTop, "done", toggleEdit);
+for (const t in OBJ_TYPES) ebtn(rowObjects, "+ " + OBJ_TYPES[t].label, () => addObj(t));
+ebtn(rowObjects, "add box", addItem); ETYPES.forEach(T => ebtn(rowObjects, "+ " + T.name, () => addEnemy(T.id))); ebtn(rowObjects, "enemy soort", enemyKind); ebtn(rowObjects, "enemy muziek", enemyMus); ebtn(rowObjects, "box uiterlijk", boxLook); ebtn(rowObjects, "box tekst", boxText);
+ebtn(rowObjects, "remove", delSel); ebtn(rowObjects, "clone", cloneSel);
+ebtn(rowRooms, "add kamer", () => addArea("room")); ebtn(rowRooms, "add hallway", () => addArea("hall"));
+ebtn(rowRooms, "vloer change", nextFloor); ebtn(rowRooms, "muur toggle", toggleWall);
+ebtn(rowRooms, "remove room", delArea); ebtn(rowRooms, "clone room", cloneArea); ebtn(rowRooms, "startpos", setSpawn);
+edBtn.onclick = () => { toggleEdit(); edBtn.blur(); };
+setTab("objects");
+// begin op de startplek (en niet in een muur)
+player.x = spawn.x; player.y = spawn.y; unstick();
+
+// =====================
+// muziek (knop I of de MUZIEK knop): map muziek/ met 1.mp3 t/m 5.mp3
+// =====================
+// 1 Rude Buster, 2 Ruder Buster, 3 Impolite Buster, 4 Rakuichi Buster, 5 Custom
+const TRACK_NAMES = ["gemene buster", "gemenere buster", "onbeleefde buster", "rakuichi en buster", "ow"];
+const tracks = TRACK_NAMES.map((name, i) => ({ name, def: "muziek/" + (i + 1) + ".mp3", url: null }));
+const musEl = document.getElementById("music"), musBtn = document.getElementById("musBtn");
+let curAudio = null, curTrack = 0, musicVol = 0.6, musicOpen = false, musMsg = "";
+try { const v = parseFloat(localStorage.getItem("buster.vol")); if (v >= 0 && v <= 1) musicVol = v; } catch (e) {}
+// welk nummer speelt bij deze enemy? eigen keuze (1..5) of anders het nummer van zijn soort
+const trackFor = e => e ? (e.mus || etype(e).id) : 1;
+function stopMusic() { if (curAudio) { curAudio.pause(); curAudio = null; } curTrack = 0; owSync(); if (musicOpen) renderMusic(); }
+function playTrack(n) {
+  stopMusic();
+  const t = tracks[n - 1]; if (!t) return;
+  const src = t.url || t.def, a = new Audio(src);
+  a.loop = true; a.volume = musicVol; a.muted = muted;
+  a.onerror = () => { musMsg = "niet gevonden: " + src; if (musicOpen) renderMusic(); };
+  a.play().catch(() => {});
+  curAudio = a; curTrack = n; owSync(); if (musicOpen) renderMusic();
+}
+// eigen mp3 per nummer blijft bewaard in de browser (IndexedDB)
+const idb = () => new Promise((res, rej) => { const r = indexedDB.open("buster-music", 1); r.onupgradeneeded = () => r.result.createObjectStore("f"); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+async function idbDo(m, fn) {
+  const db = await idb();
+  return new Promise((res, rej) => { const tx = db.transaction("f", m), q = fn(tx.objectStore("f")); tx.oncomplete = () => res(q && q.result); tx.onerror = () => rej(tx.error); });
+}
+for (let n = 1; n <= 5; n++) idbDo("readonly", s => s.get(n)).then(b => { if (b) { tracks[n - 1].url = URL.createObjectURL(b); if (musicOpen) renderMusic(); } }).catch(() => {});
+async function setCustom(n, file) {
+  musMsg = "";
+  try { await idbDo("readwrite", s => s.put(file, n)); } catch (e) { musMsg = "kon niet bewaren (alleen voor nu)"; }
+  const t = tracks[n - 1]; if (t.url) URL.revokeObjectURL(t.url);
+  t.url = URL.createObjectURL(file);
+  if (curTrack === n) playTrack(n); else renderMusic();
+}
+async function resetTrack(n) {
+  try { await idbDo("readwrite", s => s.delete(n)); } catch (e) {}
+  const t = tracks[n - 1]; if (t.url) URL.revokeObjectURL(t.url);
+  t.url = null; musMsg = "";
+  if (curTrack === n) stopMusic(); else renderMusic();
+}
+function mk(tag, cls, txt) { const d = document.createElement(tag); if (cls) d.className = cls; if (txt !== undefined) d.textContent = txt; return d; }
+function renderMusic() {
+  musEl.textContent = "";
+  const box = mk("div", "mbox"); box.onclick = e => e.stopPropagation();
+  box.appendChild(mk("div", "mh", "buster menu"));
+  tracks.forEach((t, i) => {
+    const n = i + 1, row = mk("div", "mrow"), info = mk("div", "mi");
+    info.appendChild(mk("div", "", n + ". " + t.name));
+    info.appendChild(mk("div", "ms", (t.url ? "eigen bestand" : t.def) + (n <= 4 ? "" : "  ")));
+    row.appendChild(info);
+    const play = mk("button", curTrack === n ? "on" : "", curTrack === n ? "stop" : "play");
+    play.onclick = () => { if (curTrack === n) stopMusic(); else playTrack(n); };
+    const inp = mk("input"); inp.type = "file"; inp.accept = "audio/*"; inp.style.display = "none";
+    inp.onchange = () => { if (inp.files[0]) setCustom(n, inp.files[0]); };
+    const pick = mk("button", "", "custum"); pick.onclick = () => inp.click();
+    const rst = mk("button", "", "standaard lied"); rst.disabled = !t.url; rst.onclick = () => resetTrack(n);
+    row.append(play, pick, rst, inp);
+    box.appendChild(row);
+  });
+  const vr = mk("div", "mrow"); vr.appendChild(mk("div", "", "volume"));
+  const vol = mk("input"); vol.type = "range"; vol.min = 0; vol.max = 1; vol.step = 0.05; vol.value = musicVol;
+  vol.oninput = () => { musicVol = +vol.value; if (curAudio) curAudio.volume = musicVol; if (ow) ow.volume = musicVol; try { localStorage.setItem("buster.vol", musicVol); } catch (e) {} };
+  vr.appendChild(vol); box.appendChild(vr);
+  box.appendChild(mk("div", "msg", musMsg));
+  const close = mk("button", "", "sluiten"); close.onclick = toggleMusic; box.appendChild(close);
+  musEl.appendChild(box);
+}
+function toggleMusic() {
+  musicOpen = !musicOpen;
+  musEl.style.display = musicOpen ? "flex" : "none";
+  if (musicOpen) { for (const k in keys) keys[k] = false; ptr = null; musMsg = ""; renderMusic(); }
+  else stopMusic();
+}
+musEl.onclick = toggleMusic; // klik naast het paneel = sluiten
+musBtn.onclick = () => { toggleMusic(); musBtn.blur(); };
+// =====================
+// overworld muziek (muziek/5.mp3), play knop en mute knop
+// =====================
+const owStartEl = document.getElementById("owStart"), muteBtn = document.getElementById("muteBtn");
+let ow = null, owSrc = "", owStarted = false, muted = false;
+// speelt in de ow en de editor, pauze (blijft staan waar hij was) tijdens battle of als er ander lied speelt
+function owSync() {
+  if (!owStarted) return;
+  const src = tracks[4].url || tracks[4].def;
+  if (!ow) { ow = new Audio(); ow.loop = true; }
+  if (owSrc !== src) { owSrc = src; ow.src = src; }
+  ow.volume = musicVol; ow.muted = muted;
+  if ((mode === "world" || mode === "edit") && !curAudio) ow.play().catch(() => {});
+  else ow.pause();
+}
+owStartEl.querySelector("button").onclick = () => { owStarted = true; owStartEl.style.display = "none"; owSync(); };
+muteBtn.onclick = () => {
+  muted = !muted; muteBtn.textContent = muted ? "unmute" : "mute";
+  if (ow) ow.muted = muted;
+  if (curAudio) curAudio.muted = muted;
+  muteBtn.blur();
+};
+
+// =====================
+// update
+// =====================
+// logica ow
+function updateWorld() {
+  for (const it of ITEMS) if (it.pop > 0) it.pop--;
+  if (warp) { stepWarp(); return; } // tijdens de fade staat kris stil
+  // tijdens dialoog staat kris stil
+  if (dlg) {
+    player.moving = false; player.frame = 0;
+    dlg.c = Math.min(dlg.lines[dlg.i].length, dlg.c + TYPSNELHEID);
+    return;
+  }
+  const [dx, dy] = vec((player.x + SPR_W / 2 - cam()) * SCALE, (player.y + SPR_H / 2 - camY()) * SCALE);
+  player.moving = !!(dx || dy);
+  moveAxis("x", dx * player.speed);
+  moveAxis("y", dy * player.speed);
+  if (dy > 0) player.dir = "down";
+  if (dy < 0) player.dir = "up";
+  if (dx < 0) player.dir = "left";
+  if (dx > 0) player.dir = "right";
+  if (player.moving) {
+    if (++player.timer >= 8) { player.frame++; player.timer = 0; }
+  } else player.frame = 0;
+  player.frame %= kris[player.dir].length;
+  // poster aanraken => naar de andere wereld (en weer terug). pas weer actief als je van de poster af bent gelopen
+  if (!nearPoster(2)) posterLock = false;
+  else if (!posterLock) { startWarp(); return; }
+  // enemy loopt rond. raak je hem aan => gevecht
+  for (const e of liveEnemies()) {
+    if (!e.alive) continue;
+    updateEnemy(e);
+    if (e.cool <= 0 && overlap(bodyBox(player.x, player.y), bodyBox(e.x, e.y))) { fighting = e; toggle(); return; }
+  }
+}
+// gevechts logica
+function updateBattle() {
+  if (bt.dead > 0) {
+    if (--bt.dead === 0) {
+      // dood => respawn in de ow, kris terug op de startplek
+      player.x = spawn.x; player.y = spawn.y; player.dir = "down"; player.frame = 0;
+      toggle();
+    }
+    return;
+  }
+  // aftellen. op 0 is het gevecht klaar
+  if (--bt.left <= 0) { toggle(); return; }
+  const [dx, dy] = vec(ZX + hcx(), ZY + hcy());
+  bt.hx = clamp(bt.hx + dx * 4.6, 0, ZW - HS);
+  bt.hy = clamp(bt.hy + dy * 4.6, 0, ZH - HS);
+  if (bt.pause > 0) { if (--bt.pause === 0) bt.bul = []; }
+  else {
+    // sommige vijanden wisselen na een tijd van aanval
+    if (bt.T.switch && bt.t >= bt.T.switch) { let p; do p = pickPat(); while (p === bt.pat && bt.T.pats.length > 1); setPat(p); return; }
+    // rate: hoe sneller, hoe meer kogels per seconde
+    bt.acc += bt.T.rate;
+    while (bt.tt < (bt.acc | 0)) { PAT[bt.pat].f(bt.tt); if (bt.pat2 >= 0) PAT[bt.pat2].f(bt.tt); bt.tt++; }
+    bt.t++;
+  }
+  if (bt.inv > 0) bt.inv--;
+  for (const b of bt.bul) {
+    b.x += b.vx || 0; b.y += b.vy || 0;
+    if (b.k === 2) b.age++;
+    if (bt.inv <= 0 && hit(b, hcx(), hcy())) {
+      bt.hp -= Math.max(1, Math.round((b.k === 2 ? 6 : b.k === 1 ? 4 : 3) * bt.T.dmg)); bt.inv = 50;
+      if (bt.hp <= 0) { bt.hp = 0; bt.dead = 100; return; }
+    }
+  }
+  bt.bul = bt.bul.filter(b => b.k === 2 ? b.age < 70 : b.x > -60 - (b.w || 0) && b.x < ZW + 60 && b.y > -60 - (b.h || 0) && b.y < ZH + 60);
+}
+// check ow of bt en verwissel
+function update() {
+  if (musicOpen) return; // muziek paneel open = pauze
+  fr++;
+  if (mode === "world") updateWorld();
+  else if (mode === "edit") updateEdit();
+  else if (mode === "trans") { if (++tr >= 50) startBattle(); }
+  else updateBattle();
+}
+
+// =====================
+// teken
+// =====================
+// teken de tekst
+function text(s, x, y, size, col, al) {
+  ctx.font = size + "px " + FONT; ctx.fillStyle = col || "#fff"; ctx.textAlign = al || "left"; ctx.textBaseline = "top"; ctx.fillText(s, x, y);
+}
+// teken kris of een placeholder
+function drawKris() {
+  const imgs = kris[player.dir], img = imgs[player.frame % imgs.length];
+  const x = Math.floor(player.x * SCALE), y = Math.floor(player.y * SCALE), w = SPR_W * SCALE, h = SPR_H * SCALE;
+  if (img && img.complete && img.naturalWidth) { ctx.drawImage(img, x, y, w, h); return; }
+  const s = SCALE; // kris placeholder
+  ctx.fillStyle = "#FF0000"; // rood kleur
+  ctx.fillRect(x, y, 16 * s, 16 * s); // vierkant blok
+}
+
+// witte versie van een sprite (voor de outline), 1x per plaatje gemaakt
+const tintCache = new Map();
+function whiteOf(img) {
+  let c = tintCache.get(img);
+  if (!c) {
+    c = document.createElement("canvas"); c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const g = c.getContext("2d"); g.drawImage(img, 0, 0);
+    g.globalCompositeOperation = "source-in"; g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+    tintCache.set(img, c);
+  }
+  return c;
+}
+// teken de enemy: sprite uit /enemy/ met een 1 pixel witte outline om de vorm, anders een wit vak
+function drawEnemy(e) {
+  const T = etype(e), imgs = eImgs(e)[e.dir];
+  let img = imgs[e.frame % imgs.length];
+  if (!(img.complete && img.naturalWidth)) img = imgs[0]; // ontbrekend frame: pak frame 0
+  const x = Math.floor(e.x * SCALE), y = Math.floor(e.y * SCALE), w = SPR_W * SCALE, h = SPR_H * SCALE;
+  if (img && img.complete && img.naturalWidth) {
+    const white = whiteOf(img), o = SCALE;
+    for (const [ox, oy] of [[-o, 0], [o, 0], [0, -o], [0, o]]) ctx.drawImage(white, x + ox, y + oy, w, h);
+    ctx.drawImage(img, x, y, w, h);
+    return;
+  }
+  // nog geen sprite: gekleurd vak met het nummer van de soort
+  ctx.fillStyle = T.col; ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3);
+  text(String(T.id), x + w / 2, y + h / 2 - 14, 28, "#000", "center");
+}
+
+// frame ow
+function drawWorld() {
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.imageSmoothingEnabled = false;
+  ctx.save(); ctx.translate(-Math.round(cam() * SCALE), -Math.round(camY() * SCALE));
+  // eerst alle muren (rand om elke ruimte), dan de vloeren er overheen zodat de deuropening open is
+  ctx.fillStyle = "#555";
+  for (const a of areas) ctx.fillRect((a.x - 2) * SCALE, (a.y - 2) * SCALE, (a.w + 4) * SCALE, (a.h + 4) * SCALE);
+  for (const a of areas) drawArea(a);
+  for (const o of objs) if (OBJ_TYPES[o.t].flat) drawObj(o);
+  const near = (dlg || mode === "edit") ? null : nearItem(), feet = player.y + SPR_H;
+  for (const it of liveItems()) if (it.y + IS <= feet) drawItem(it, near);
+  // kris en de enemies op volgorde van y (wie lager staat komt voor)
+  const order = liveEnemies().filter(e => e.alive || mode === "edit").map(e => ({ y: e.y + SPR_H, f: () => drawEnemy(e) }));
+  order.push({ y: player.y + SPR_H, f: drawKris });
+  for (const o of objs) { const T = OBJ_TYPES[o.t]; if (!T.flat) order.push({ y: objBase(o), f: () => drawObj(o) }); }
+  order.sort((p, q) => p.y - q.y).forEach(o => o.f());
+  for (const it of liveItems()) if (it.y + IS > feet) drawItem(it, near);
+  if (mode === "edit") drawEditOverlay();
+  ctx.restore();
+  if (mode === "edit") drawEditHud();
+  text("", 12, canvas.height - 28, 18, "#666");
+  if (warp) { ctx.fillStyle = "rgba(0,0,0," + (warp.t <= 18 ? warp.t / 18 : (36 - warp.t) / 18) + ")"; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+  if (dlg) drawDialog();
+}
+// teken de items in de ow
+function drawItem(it, near) {
+  const w = IS * SCALE, x = it.x * SCALE, y = it.y * SCALE - Math.abs(Math.sin(it.pop / 30 * Math.PI)) * 14;
+  if (it.img.complete && it.img.naturalWidth) ctx.drawImage(it.img, x, y, w, w);
+  else {
+    ctx.fillStyle = it.col; ctx.fillRect(x, y, w, w);
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.strokeRect(x + 1.5, y + 1.5, w - 3, w - 3);
+    text(it.id, x + w / 2, y + w / 2 - 8, 16, "#000", "center");
+  }
+  if (it === near) {
+    ctx.strokeStyle = "#ff0"; ctx.lineWidth = 3; ctx.strokeRect(x - 4, y - 4, w + 8, w + 8);
+    const b = Math.sin(fr / 8) * 4;
+    ctx.fillStyle = "#ff0"; ctx.beginPath(); ctx.moveTo(x + w / 2 - 9, y - 24 + b); ctx.lineTo(x + w / 2 + 9, y - 24 + b); ctx.lineTo(x + w / 2, y - 10 + b); ctx.fill();
+  }
+}
+// ut dialoog doos
+function drawDialog() {
+  const bw = canvas.width - 72, bh = 150, bx = 36, by = dlg.top ? 24 : canvas.height - bh - 24;
+  ctx.fillStyle = "#000"; ctx.fillRect(bx, by, bw, bh);
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 6; ctx.strokeRect(bx + 3, by + 3, bw - 6, bh - 6);
+  const L = dlg.lines[dlg.i];
+  text(L.slice(0, dlg.c | 0), bx + 32, by + 36, 34, "#fff");
+  if (dlg.c >= L.length && (fr >> 4) % 2 === 0) {
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.moveTo(bx + bw - 60, by + bh - 52); ctx.lineTo(bx + bw - 36, by + bh - 52); ctx.lineTo(bx + bw - 48, by + bh - 34); ctx.fill();
+  }
+}
+// kogels
+const img = new Image();
+img.src = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR2eKATPvhAnn2jKq_17zCdK8ai_Fwun9sK20yGXeqing&s=10"; 
+
+function drawSquare(x, y, s) {
+  if (!img.complete) return;
+  ctx.drawImage(img, x - s, y - s, s * 2, s * 2);
+}
+// teken alle kogels
+function drawBullets() {
+  for (const b of bt.bul) {
+    if (b.k === 0) drawSquare(b.x, b.y, b.r * 1.3);
+    else if (b.k === 1) { ctx.fillStyle = "#fff"; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.fillStyle = "#cfcfcf"; ctx.fillRect(b.x + 4, b.y, b.w - 8, b.h); }
+    else if (b.age < 40) {
+      ctx.fillStyle = b.age % 8 < 4 ? "rgba(255,60,172,.9)" : "rgba(255,255,255,.7)";
+      if (b.w > b.h) ctx.fillRect(b.x, b.y + b.h / 2 - 2, b.w, 4); else ctx.fillRect(b.x + b.w / 2 - 2, b.y, 4, b.h);
+    } else {
+      ctx.globalAlpha = Math.min(1, (62 - b.age) / 12); ctx.fillStyle = "#ff3cac"; ctx.fillRect(b.x, b.y, b.w, b.h);
+      ctx.fillStyle = "#fff"; if (b.w > b.h) ctx.fillRect(b.x, b.y + 10, b.w, b.h - 20); else ctx.fillRect(b.x + 10, b.y, b.w - 20, b.h);
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+// bt frame
+function drawBattle() {
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.save(); ctx.translate(ZX, ZY);
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, ZW, ZH);
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, ZW, ZH); ctx.clip();
+  drawBullets();
+  if (bt.dead === 0 && (bt.inv <= 0 || (bt.inv >> 2) % 2 === 0)) ctx.drawImage(heartImg, bt.hx, bt.hy, HS, HS);
+  ctx.restore();
+  ctx.strokeStyle = "#00ff00"; ctx.lineWidth = 2; ctx.lineJoin = "miter"; ctx.strokeRect(-1, -1, ZW + 2, ZH + 2);
+  ctx.restore();
+  const sec = Math.ceil(bt.left / 60);
+  text(String(sec), canvas.width / 2, 40, 48, sec <= 5 ? "#f33" : "#fff", "center");
+  text(bt.T.name + "  LV " + bt.T.id, 24, 24, 28, bt.T.col);
+  ctx.fillStyle = "#f00"; ctx.fillRect(ZX + 310, 512, 100, 28); ctx.fillStyle = "#ff0"; ctx.fillRect(ZX + 310, 512, 5 * bt.hp, 28);
+  if (bt.dead > 0) { ctx.fillStyle = "rgba(0,0,0,.7)"; ctx.fillRect(0, 0, canvas.width, canvas.height); text("DOOD", canvas.width / 2, 230, 64, "#fff", "center"); text("Womp Womp", canvas.width / 2, 320, 22, "#aaa", "center"); }
+}
+// bt intro
+function drawTrans() {
+  drawWorld();
+  ctx.fillStyle = "rgba(0,0,0," + tr / 60 + ")"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const sx = (player.x + SPR_W / 2 - cam()) * SCALE, sy = (player.y + 14 - camY()) * SCALE;
+  const ex = ZX + (ZW) / 2, ey = ZY + ZH * 0.65 + HS / 2, p = Math.max(0, (tr - 24) / 26);
+  if (tr >= 24 || (tr >> 3) % 2 === 0) ctx.drawImage(heartImg, sx + (ex - sx) * p - HS / 2, sy + (ey - sy) * p - HS / 2, HS, HS);
+}
+// Pick the right drawing for the current mode
+function draw() {
+  if (mode === "world" || mode === "edit") drawWorld(); else if (mode === "trans") drawTrans(); else drawBattle();
+}
+// check of ow of bt is
+// =====================
+// 60 fps loop
+// =====================
+// loopt de spel op 60 fps
+let last = performance.now(), acc = 0;
+function loop(n) {
+  acc += Math.min(100, n - last); last = n;
+  while (acc >= 1000 / 60) { update(); acc -= 1000 / 60; }
+  draw();
+  padSync();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
