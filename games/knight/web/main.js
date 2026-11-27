@@ -149,8 +149,18 @@ title.replaying = !!replay;
 const SETTINGS_KEY = 'knightsim.settings';
 try {
   const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? 'null');
-  if (saved?.gear?.length === 3) {
-    title.gear = saved.gear.map((g) => ({ weapon: g.weapon | 0, armor: (g.armor ?? []).map((a) => a | 0) }));
+  if (saved?.gear) {
+    // Handle both array format (from share URL) and object format (from localStorage)
+    if (Array.isArray(saved.gear)) {
+      title.gear = saved.gear.map((g) => ({ weapon: g.weapon | 0, armor: (g.armor ?? []).map((a) => a | 0) }));
+    } else if (typeof saved.gear === 'object') {
+      // Convert object {1: {...}, 2: {...}, 3: {...}} to same object format for UI
+      title.gear = {
+        1: { weapon: saved.gear[1]?.weapon | 0, armor: (saved.gear[1]?.armor ?? []).map((a) => a | 0) },
+        2: { weapon: saved.gear[2]?.weapon | 0, armor: (saved.gear[2]?.armor ?? []).map((a) => a | 0) },
+        3: { weapon: saved.gear[3]?.weapon | 0, armor: (saved.gear[3]?.armor ?? []).map((a) => a | 0) },
+      };
+    }
   }
   if (Array.isArray(saved?.bag)) {
 
@@ -192,7 +202,12 @@ const sharedCfg = decodeConfig(params.get('cfg'), {
   attackCount: ATTACK_MENU.length,
 });
 if (sharedCfg) {
-  if (sharedCfg.gear && Array.isArray(sharedCfg.gear)) title.gear = sharedCfg.gear;
+  // sharedCfg.gear is an array from decodeConfig; convert to object format for UI
+  if (sharedCfg.gear && Array.isArray(sharedCfg.gear)) {
+    title.gear = {
+      1: sharedCfg.gear[0], 2: sharedCfg.gear[1], 3: sharedCfg.gear[2]
+    };
+  }
   if (sharedCfg.bag) title.bag = sharedCfg.bag;
   if (sharedCfg.attack !== null) {
     title.attackIndex = sharedCfg.attack;
@@ -258,7 +273,10 @@ function maskHeldInput() {
 }
 
 function reset() {
-  if (!Array.isArray(title.gear)) title.gear = cloneGear(STARTING_GEAR);
+  // title.gear is object {1: {...}, 2: {...}, 3: {...}}; validate it has all 3 characters
+  if (!title.gear || !title.gear[1] || !title.gear[2] || !title.gear[3]) {
+    title.gear = cloneGear(STARTING_GEAR);
+  }
 
   audio.stopAll();
 
@@ -278,7 +296,8 @@ function reset() {
   state.endlessStage = runMode === 'endless' ? endlessPhase(title.stageIndex) : 0;
   state.vistaFsBase = vistaFs;
 
-  state.loadout.gear = title.gear.map((g) => ({ weapon: g.weapon, armor: [...g.armor] }));
+  // title.gear is object {1: {...}, 2: {...}, 3: {...}}; convert to array for simulation
+  state.loadout.gear = [title.gear[1], title.gear[2], title.gear[3]].map((g) => ({ weapon: g.weapon, armor: [...g.armor] }));
 
   state.flag12 = title.shake ? 0 : 1;
   state.spriteFrames = renderer.spriteFrames;
@@ -323,7 +342,8 @@ function persistSettings() {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({
       v: 1,
-      gear: title.gear, bag: title.bag, volumes: title.volumes,
+      // title.gear is object {1: {...}, 2: {...}, 3: {...}}; convert to array for encodeConfig
+    gear: [title.gear[1], title.gear[2], title.gear[3]], bag: title.bag, volumes: title.volumes,
       shake: title.shake, scaling: title.scaling, swapZX: title.swapZX,
 
       holdBreath: title.holdBreath,
@@ -348,7 +368,8 @@ function shareUrl() {
     mode: modeIndex < 0 ? NONE : modeIndex,
     attack: title.attackIndex,
     difficulty: title.difficultyIndex,
-    gear: title.gear,
+    // title.gear is object {1: {...}, 2: {...}, 3: {...}}; convert to array for encodeConfig
+    gear: [title.gear[1], title.gear[2], title.gear[3]],
     bag: title.bag,
   });
   const url = new URL(location.href);
